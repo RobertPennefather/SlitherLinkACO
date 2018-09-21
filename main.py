@@ -403,12 +403,24 @@ class Ants(object):
         return [bestEdgesHorizontal, bestEdgesVertical, bestFitness]
 
     def fitness(self):
+
+        #Total number of Edges drawn by ant
         totalEdges = 0
         for edges in self.puzzle.edgesHorizontal:
             totalEdges += edges.count(True)
         for edges in self.puzzle.edgesVertical:
             totalEdges += edges.count(True)
-        return totalEdges
+
+        #Total number of boxes complete
+        totalComplete = 0
+        for i in range(0, self.puzzle.gridNumberY):
+            for j in range(0, self.puzzle.gridNumberX):
+                if self.puzzle.checkBoxComplete(i,j):
+                    #totalComplete += 1
+                    totalComplete += self.puzzle.blocks[i][j] + 1
+                    #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
+
+        return totalComplete
 
 #Global Graphic Sizes
 CANVAS_BLOCK_SIZE = 60
@@ -438,6 +450,7 @@ bestRoute = ants.findBestAnt()
 print("Best Fitness: " + str(bestRoute[2]))
 puzzleDisplay.drawAntEdges( bestRoute[0], bestRoute[1])
 
+#TODO Better fitness function
 #TODO Update pheremones
 #TODO Make ant route use pheremones
 
