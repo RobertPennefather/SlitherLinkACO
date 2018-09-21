@@ -27,6 +27,7 @@ class Puzzle(object):
                 self.blocks = [[None for i in range(self.gridNumberX)] for j in range(self.gridNumberY)]
                 self.edgesHorizontal = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
                 self.edgesVertical = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
+                self.startingPoints = []
 
                 i = -1
                 j = 0
@@ -95,6 +96,15 @@ class Puzzle(object):
                         if self.blocks[i+1][j+1] == 3:
                             self.edgesHorizontal[i][j] = True
                             self.edgesVertical[i][j] = True
+
+        self.findStartingPoints()
+
+    def findStartingPoints(self):
+
+        for i in range(0, self.gridNumberY+1):
+            for j in range(0, self.gridNumberX+1):
+                if self.checkPointsEdges(i, j) == 1:
+                    self.startingPoints.append([i,j])
 
     def checkCardinal3(self, i, j, otherBox, horizontalEdges, checkForward = True):
 
@@ -185,6 +195,33 @@ class DrawPuzzle(object):
         
         self.canvas.update()
 
+    def drawBoard(self):
+
+        for i in range(len(self.puzzle.edgesHorizontal)):
+            for j in range(len(self.puzzle.edgesHorizontal[i])):
+                if self.puzzle.edgesHorizontal[i][j]:
+                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                    self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE)
+
+        for i in range(len(self.puzzle.edgesVertical)):
+            for j in range(len(self.puzzle.edgesVertical[i])):
+                if self.puzzle.edgesVertical[i][j]:
+                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                    self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE)
+        
+        for i in range(0, self.puzzle.gridNumberY+1):
+            for j in range(0, self.puzzle.gridNumberX+1):
+
+                if self.puzzle.checkPointsEdges(i, j) == 1:
+                    self.puzzle.startingPoints.append([i,j])
+                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE -1.5
+                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE -1.5
+                    self.canvas.create_oval(xCoord, yCoord, xCoord+CIRCLE_SIZE+3, yCoord+CIRCLE_SIZE+3, fill="red", outline="")
+
+        self.canvas.update()
+
     def drawEdge(self, iOld, jOld, iNew, jNew):
 
         #Moving horizontal
@@ -209,171 +246,176 @@ class DrawPuzzle(object):
         
         self.canvas.update()
 
-    def drawEdges(self):
+    def drawAntEdges(self, edgesHorizontal, edgesVertical):
 
-        for i in range(len(self.puzzle.edgesHorizontal)):
-            for j in range(len(self.puzzle.edgesHorizontal[i])):
-                if self.puzzle.edgesHorizontal[i][j]:
+        for i in range(len(edgesHorizontal)):
+            for j in range(len(edgesHorizontal[i])):
+                if edgesHorizontal[i][j]:
                     xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-                    self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE)
+                    self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE, fill="red")
 
-        for i in range(len(self.puzzle.edgesVertical)):
-            for j in range(len(self.puzzle.edgesVertical[i])):
-                if self.puzzle.edgesVertical[i][j]:
+        for i in range(len(edgesVertical)):
+            for j in range(len(edgesVertical[i])):
+                if edgesVertical[i][j]:
                     xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-                    self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE)
+                    self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="red")
         
         self.canvas.update()
+        self.drawBoard()
 
 class Ants(object):
 
-    def __init__(self, puzzle, puzzleDisplay):
-
-        self.startingPoints = []
+    def __init__(self, puzzle, populationSize):
         self.puzzle = puzzle
-        self.puzzleDisplay = puzzleDisplay
+        self.populationSize = populationSize
 
-        for i in range(0, self.puzzle.gridNumberY+1):
-            for j in range(0, self.puzzle.gridNumberX+1):
+    def findBestAnt(self):
 
-                if self.puzzle.checkPointsEdges(i, j) == 1:
-                    self.startingPoints.append([i,j])
-                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE -1.5
-                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE -1.5
-                    self.puzzleDisplay.canvas.create_oval(xCoord, yCoord, xCoord+CIRCLE_SIZE+3, yCoord+CIRCLE_SIZE+3, fill="red", outline="")
-        
-        #print(self.startingPoints)
-        self.puzzleDisplay.canvas.update()  
+        bestEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
+        bestEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+        bestFitness = 0
 
-    def findPath(self):  
-        randomNum = random.randint(0, len(self.startingPoints)-1)
-        randomStartingPoint = self.startingPoints[randomNum]
-        iStart = randomStartingPoint[0]
-        jStart = randomStartingPoint[1]
-        iCur = iStart
-        jCur = jStart
-        firstIteration = True
+        for _ in range(self.populationSize):
 
-        ant_puzzle = self.puzzle
-        ant_edgesHorizontal = self.puzzle.edgesHorizontal
-        ant_edgesVertical = self.puzzle.edgesVertical
+            self.puzzle = puzzle
+            randomNum = random.randint(0, len(self.puzzle.startingPoints)-1)
+            randomStartingPoint = self.puzzle.startingPoints[randomNum]
+            iStart = randomStartingPoint[0]
+            jStart = randomStartingPoint[1]
+            iCur = iStart
+            jCur = jStart
+            firstIteration = True
 
-        while True:
-        
-            #print(str(iCur)+","+str(jCur))
-            validMoves = []
+            edgesHorizontalCopy = copy.deepcopy(self.puzzle.edgesHorizontal)
+            edgesVerticalCopy = copy.deepcopy(self.puzzle.edgesVertical)
 
-            #Check valid moves
-            if (iCur-1 >= 0 
-            and not ant_edgesVertical[iCur-1][jCur]
-            and ant_puzzle.checkPointsEdges(iCur-1, jCur) < 2
-            and (iCur-1 < 0 or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur-1, jCur-1))
-            and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur-1, jCur))):
-                validMoves.append([iCur-1, jCur])
-                
-            if (iCur+1 <= sself.puzzleelf.gridNumberX 
-            and not ant_edgesVertical[iCur][jCur]
-            and ant_puzzle.checkPointsEdges(iCur+1, jCur) < 2
-            and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))
-            and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur, jCur))):
-                validMoves.append([iCur+1, jCur])
-
-            if (jCur-1 >= 0
-            and not ant_edgesHorizontal[iCur][jCur-1]
-            and ant_puzzle.checkPointsEdges(iCur, jCur-1) < 2
-            and (iCur-1 < 0 or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur-1, jCur-1))
-            and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))):
-                validMoves.append([iCur, jCur-1])
-
-            if (jCur+1 <= self.puzzle.gridNumberY 
-            and not ant_edgesHorizontal[iCur][jCur]
-            and ant_puzzle.checkPointsEdges(iCur, jCur+1) < 2
-            and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur-1, jCur))
-            and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur, jCur))):
-                validMoves.append([iCur, jCur+1])
-
-            if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
-                #print("NO VALID MOVES END ANT")
-                break
-
-            randomNum = random.randint(0, len(validMoves)-1)
-            randomValidMove = validMoves[randomNum]
-            #print(validMoves)
-            iNew = randomValidMove[0]
-            jNew = randomValidMove[1]
-
-            #Moving horizontal
-            if iCur == iNew:
-                if jCur < jNew:
-                    ant_edgesHorizontal[iCur][jCur] = True
-                elif jCur > jNew:
-                    ant_edgesHorizontal[iNew][jNew] = True
-
-            #Moving vertical
-            elif jCur == jNew:
-                if iCur < iNew:
-                    ant_edgesVertical[iCur][jCur] = True
-                elif iCur > iNew:
-                    ant_edgesVertical[iNew][jNew] = True
-
-            self.puzzleDisplay.drawEdge(iCur, jCur, iNew, jNew)
-
-            #Move along already drawn lines
-            while (ant_puzzle.checkPointsEdges(iNew, jNew) == 2 
-            and not (iNew == iStart and jNew == jStart)):
-
+            while True:
+            
                 #print(str(iCur)+","+str(jCur))
+                validMoves = []
 
-                if (iNew-1 >= 0 
-                and iNew-1 != iCur 
-                and ant_edgesVertical[iNew-1][jNew]):
-                    iCur = iNew
-                    jCur = jNew
-                    iNew = iNew-1
-                    continue
-
-                if (iNew+1 <= self.puzzle.gridNumberX 
-                and iNew+1 != iCur
-                and ant_edgesVertical[iNew][jNew]):
-                    iCur = iNew
-                    jCur = jNew
-                    iNew = iNew+1
-                    continue
+                #Check valid moves
+                if (iCur-1 >= 0 
+                and not self.puzzle.edgesVertical[iCur-1][jCur]
+                and self.puzzle.checkPointsEdges(iCur-1, jCur) < 2
+                and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
+                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur-1, jCur))):
+                    validMoves.append([iCur-1, jCur])
                     
-                if (jNew-1 >= 0 
-                and jNew-1 != jCur
-                and ant_edgesHorizontal[iNew][jNew-1]):
-                    iCur = iNew
-                    jCur = jNew
-                    jNew = jNew-1
-                    continue
+                if (iCur+1 <= self.puzzle.gridNumberX 
+                and not self.puzzle.edgesVertical[iCur][jCur]
+                and self.puzzle.checkPointsEdges(iCur+1, jCur) < 2
+                and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))
+                and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur, jCur))):
+                    validMoves.append([iCur+1, jCur])
 
-                if (jNew+1 <= self.puzzle.gridNumberY 
-                and jNew+1 != jCur
-                and ant_edgesHorizontal[iNew][jNew]):
-                    iCur = iNew
-                    jCur = jNew
-                    jNew = jNew+1
-                    continue
+                if (jCur-1 >= 0
+                and not self.puzzle.edgesHorizontal[iCur][jCur-1]
+                and self.puzzle.checkPointsEdges(iCur, jCur-1) < 2
+                and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
+                and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))):
+                    validMoves.append([iCur, jCur-1])
 
-            iCur = iNew
-            jCur = jNew
-            firstIteration = False
+                if (jCur+1 <= self.puzzle.gridNumberY 
+                and not self.puzzle.edgesHorizontal[iCur][jCur]
+                and self.puzzle.checkPointsEdges(iCur, jCur+1) < 2
+                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur-1, jCur))
+                and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur, jCur))):
+                    validMoves.append([iCur, jCur+1])
 
+                if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
+                    #print("NO VALID MOVES END ANT")
+                    break
+
+                randomNum = random.randint(0, len(validMoves)-1)
+                randomValidMove = validMoves[randomNum]
+                #print(validMoves)
+                iNew = randomValidMove[0]
+                jNew = randomValidMove[1]
+
+                #Moving horizontal
+                if iCur == iNew:
+                    if jCur < jNew:
+                        self.puzzle.edgesHorizontal[iCur][jCur] = True
+                    elif jCur > jNew:
+                        self.puzzle.edgesHorizontal[iNew][jNew] = True
+
+                #Moving vertical
+                elif jCur == jNew:
+                    if iCur < iNew:
+                        self.puzzle.edgesVertical[iCur][jCur] = True
+                    elif iCur > iNew:
+                        self.puzzle.edgesVertical[iNew][jNew] = True
+
+                #Move along already drawn lines
+                while (self.puzzle.checkPointsEdges(iNew, jNew) == 2 
+                and not (iNew == iStart and jNew == jStart)):
+
+                    #print(str(iCur)+","+str(jCur))
+
+                    if (iNew-1 >= 0 
+                    and iNew-1 != iCur 
+                    and self.puzzle.edgesVertical[iNew-1][jNew]):
+                        iCur = iNew
+                        jCur = jNew
+                        iNew = iNew-1
+                        continue
+
+                    if (iNew+1 <= self.puzzle.gridNumberX 
+                    and iNew+1 != iCur
+                    and self.puzzle.edgesVertical[iNew][jNew]):
+                        iCur = iNew
+                        jCur = jNew
+                        iNew = iNew+1
+                        continue
+                        
+                    if (jNew-1 >= 0 
+                    and jNew-1 != jCur
+                    and self.puzzle.edgesHorizontal[iNew][jNew-1]):
+                        iCur = iNew
+                        jCur = jNew
+                        jNew = jNew-1
+                        continue
+
+                    if (jNew+1 <= self.puzzle.gridNumberY 
+                    and jNew+1 != jCur
+                    and self.puzzle.edgesHorizontal[iNew][jNew]):
+                        iCur = iNew
+                        jCur = jNew
+                        jNew = jNew+1
+                        continue
+
+                iCur = iNew
+                jCur = jNew
+                firstIteration = False
+
+            curFitness = self.fitness()
+            if (curFitness > bestFitness):
+                bestEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
+                bestEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+                bestFitness = curFitness
+
+            self.puzzle.edgesHorizontal = edgesHorizontalCopy
+            self.puzzle.edgesVertical = edgesVerticalCopy
+            
+        return [bestEdgesHorizontal, bestEdgesVertical, bestFitness]
+
+    def fitness(self):
         totalEdges = 0
-        for edges in ant_edgesHorizontal:
+        for edges in self.puzzle.edgesHorizontal:
             totalEdges += edges.count(True)
-        for edges in ant_edgesVertical:
+        for edges in self.puzzle.edgesVertical:
             totalEdges += edges.count(True)
-        return [totalEdges, ant_puzzle]
+        return totalEdges
 
 #Global Graphic Sizes
 CANVAS_BLOCK_SIZE = 60
 CIRCLE_SIZE = 5
 LINE_SIZE = 2
 CANVAS_BOUNDARY_SIZE = 5
+POPULATION_SIZE = 20
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -381,41 +423,22 @@ parser.add_argument('filename', help='name of puzzle file required to solve')
 args = parser.parse_args()
 
 #Check if file exists
-file_name = args.filename
-if not path.exists(file_name):
+filename = args.filename
+if not path.exists(filename):
     print('File not found')
     exit()
 
-puzzle = Puzzle(file_name)
+puzzle = Puzzle(filename)
 puzzleDisplay = DrawPuzzle(puzzle)
-time.sleep(1.0)
 puzzle.basicMoves()
-puzzleDisplay.drawEdges()
+puzzleDisplay.drawBoard()
 
-# firstAnts = Ants(puzzle, puzzleDisplay)
+ants = Ants(puzzle, POPULATION_SIZE)
+bestRoute = ants.findBestAnt()
+print("Best Fitness: " + str(bestRoute[2]))
+puzzleDisplay.drawAntEdges( bestRoute[0], bestRoute[1])
 
-# for i in range(0,10):
-    # path = firstAnts.findPath()
-    # newPuzzle = Puzzle("", True)
-    # newPuzzle.edgesHorizontal = path[1].edgesHorizontal
-    # newPuzzle.edgesVertical = path[1].edgesVertical
-    # puzzleDisplay = 
+#TODO Update pheremones
+#TODO Make ant route use pheremones
 
 puzzleDisplay.root.mainloop()
-
-#Pseduo code for ACO
-"""
-board = initialiseBoard(file_name)
-board.basicMoves()
-
-while iter < MAX_ITERATION or not bestSolution.complete
-    for ant in ants
-        ant.findRoute()
-    for ant in ants
-        if ant.route.complete
-            break
-        else if ant.route.fitness > max_fitness
-            bestRoute = ant.route
-            maxFitness = ant.route.fitness
-    board.updatePheromones(ants.route)
-"""
