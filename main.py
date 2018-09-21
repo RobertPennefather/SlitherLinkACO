@@ -7,7 +7,7 @@ import os.path
 from os import path
 from Tkinter import *
 
-def is_int(s):
+def isInt(s):
     try: 
         int(s)
         return True
@@ -20,12 +20,14 @@ class Puzzle(object):
         file = open(filename, 'r') 
         try:
             with open(filename , 'r') as f:
-                first_line = f.readline()
-                dimensions = map(int, first_line.strip().split(','))
-                self.blocks = [[None for i in range(dimensions[0])] for j in range(dimensions[1])]
-                self.edges_horizontal = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
-                self.edges_vertical = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
-                
+                firstLine = f.readline()
+                dimensions = map(int, firstLine.strip().split(','))
+                self.gridNumberX = dimensions[0]
+                self.gridNumberY = dimensions[1]
+                self.blocks = [[None for i in range(self.gridNumberX)] for j in range(self.gridNumberY)]
+                self.edgesHorizontal = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
+                self.edgesVertical = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
+
                 i = -1
                 j = 0
                 for line in f:
@@ -33,38 +35,126 @@ class Puzzle(object):
                         i = i+1
                         if c == '.':
                             continue
-                        elif is_int(c):
+                        elif isInt(c):
                             self.blocks[j][i] = int(c)
                     i = -1
                     j = j+1
         except:
             print('Puzzle File Incorrectly Formatted')
             exit()
-    
+
+    def basicMoves(self):
+        for i in range(0, self.gridNumberY):
+            for j in range(0, self.gridNumberX):
+
+                #Can add logic for 2s if need be later
+                if self.blocks[i][j] == 3:
+
+                    #Check for 0,3 in cardinal direction to 3
+                    if i-1 >= 0:
+                        self.checkCardinal3(i, j, self.blocks[i-1][j], horizontalEdges = True, checkForward = False)
+
+                    if i+1 < self.gridNumberX:
+                        self.checkCardinal3(i, j, self.blocks[i+1][j], horizontalEdges = True, checkForward = True)
+
+                    if j-1 >= 0:
+                        self.checkCardinal3(i, j, self.blocks[i][j-1], horizontalEdges = False, checkForward = False)
+
+                    if j+1 < self.gridNumberY:
+                        self.checkCardinal3(i, j, self.blocks[i][j+1], horizontalEdges = False, checkForward = True)
+
+                    #Check for 0,3 diagonal to 3
+                    if i-1 >= 0 and j-1 >= 0:
+                        if self.blocks[i-1][j-1] == 0:
+                            self.edgesHorizontal[i][j] = True
+                            self.edgesVertical[i][j] = True
+                        if self.blocks[i-1][j-1] == 3:
+                            self.edgesHorizontal[i+1][j] = True
+                            self.edgesVertical[i][j+1] = True
+
+                    if i-1 >= 0 and j+1 < self.gridNumberY:
+                        if self.blocks[i-1][j+1] == 0:
+                            self.edgesHorizontal[i][j] = True
+                            self.edgesVertical[i][j+1] = True
+                        if self.blocks[i-1][j+1] == 3:
+                            self.edgesHorizontal[i+1][j] = True
+                            self.edgesVertical[i][j] = True
+
+                    if i+1 < self.gridNumberX and j-1 >= 0:
+                        if self.blocks[i+1][j-1] == 0:
+                            self.edgesHorizontal[i+1][j] = True
+                            self.edgesVertical[i][j] = True
+                        if self.blocks[i+1][j-1] == 3:
+                            self.edgesHorizontal[i][j] = True
+                            self.edgesVertical[i][j+1] = True
+
+                    if i+1 < self.gridNumberX and j+1 < self.gridNumberY:
+                        if self.blocks[i+1][j+1] == 0:
+                            self.edgesHorizontal[i+1][j] = True
+                            self.edgesVertical[i][j+1] = True
+                        if self.blocks[i+1][j+1] == 3:
+                            self.edgesHorizontal[i][j] = True
+                            self.edgesVertical[i][j] = True
+
+    def checkCardinal3(self, i, j, otherBox, horizontalEdges, checkForward = True):
+
+        if otherBox == 0:
+
+            if horizontalEdges:
+                self.edgesVertical[i][j] = True
+                self.edgesVertical[i][j+1] = True
+
+                i1 = i if checkForward else i+1
+                i2 = i+1 if checkForward else i
+
+                self.edgesHorizontal[i1][j] = True
+                self.edgesHorizontal[i2][j-1] = True
+                self.edgesHorizontal[i2][j+1] = True
+                
+            else:
+                self.edgesHorizontal[i][j] = True
+                self.edgesHorizontal[i+1][j] = True
+
+                j1 = j if checkForward else j+1
+                j2 = j+1 if checkForward else j
+
+                self.edgesVertical[i][j1] = True
+                self.edgesVertical[i-1][j2] = True
+                self.edgesVertical[i+1][j2] = True
+
+        elif otherBox == 3:
+
+            if horizontalEdges:
+                self.edgesHorizontal[i][j] = True
+                self.edgesHorizontal[i+1][j] = True
+            else:
+                self.edgesVertical[i][j] = True
+                self.edgesVertical[i][j+1] = True
+
     def checkPointsEdges(self, i, j):
         drawnLines = [None] * 4
 
         if i-1 >= 0:
-            drawnLines[0] = self.edges_vertical[i-1][j]
-        if i+1 <= GRID_NUMBER_X:
-            drawnLines[1] = self.edges_vertical[i][j]
+            drawnLines[0] = self.edgesVertical[i-1][j]
+        if i+1 <= self.gridNumberX:
+            drawnLines[1] = self.edgesVertical[i][j]
         if j-1 >= 0:
-            drawnLines[2] = self.edges_horizontal[i][j-1]
-        if j+1 <= GRID_NUMBER_Y:
-            drawnLines[3] = self.edges_horizontal[i][j]
+            drawnLines[2] = self.edgesHorizontal[i][j-1]
+        if j+1 <= self.gridNumberY:
+            drawnLines[3] = self.edgesHorizontal[i][j]
 
         return drawnLines.count(True)
 
     def checkBoxEdges(self, i, j):
         edgesDrawn = 0
 
-        if self.edges_horizontal[i][j]:
+        if self.edgesHorizontal[i][j]:
             edgesDrawn = edgesDrawn + 1
-        if self.edges_horizontal[i+1][j]:
+        if self.edgesHorizontal[i+1][j]:
             edgesDrawn = edgesDrawn + 1
-        if self.edges_vertical[i][j]:
+        if self.edgesVertical[i][j]:
             edgesDrawn = edgesDrawn + 1
-        if self.edges_vertical[i][j+1]:
+        if self.edgesVertical[i][j+1]:
             edgesDrawn = edgesDrawn + 1
         
         return edgesDrawn
@@ -76,23 +166,24 @@ class Puzzle(object):
 
 class DrawPuzzle(object):
     
-    def __init__(self):
+    def __init__(self, puzzle):
+        self.puzzle = puzzle
         self.root = Tk()
-        self.canvas = Canvas(self.root, width=CANVAS_SIZE_X, height = CANVAS_SIZE_Y)
+        canvasSizeX = CANVAS_BOUNDARY_SIZE*2 + CANVAS_BLOCK_SIZE*self.puzzle.gridNumberX
+        canvasSizeY = CANVAS_BOUNDARY_SIZE*2 + CANVAS_BLOCK_SIZE*self.puzzle.gridNumberY
+        self.canvas = Canvas(self.root, width=canvasSizeX, height = canvasSizeY)
         self.canvas.pack()
-        for i in range(0, GRID_NUMBER_Y+1):
-            for j in range(0, GRID_NUMBER_X+1):
+        for i in range(0, self.puzzle.gridNumberY+1):
+            for j in range(0, self.puzzle.gridNumberX+1):
                 xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE
                 yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE
                 self.canvas.create_oval(xCoord, yCoord, xCoord+CIRCLE_SIZE, yCoord+CIRCLE_SIZE, fill="black")
 
                 #Draws numbers in (about) middle of block if number exists
-                if j < GRID_NUMBER_X and i < GRID_NUMBER_Y and blocks[i][j] != None:
-                    self.canvas.create_text(xCoord+CANVAS_BLOCK_SIZE/1.75, yCoord+CANVAS_BLOCK_SIZE/1.75, text=str(blocks[i][j]))
+                if j < self.puzzle.gridNumberX and i < self.puzzle.gridNumberY and self.puzzle.blocks[i][j] != None:
+                    self.canvas.create_text(xCoord+CANVAS_BLOCK_SIZE/1.75, yCoord+CANVAS_BLOCK_SIZE/1.75, text=str(self.puzzle.blocks[i][j]))
         
         self.canvas.update()
-        time.sleep(0.5)
-        self.drawBasics()
 
     def drawEdge(self, iOld, jOld, iNew, jNew):
 
@@ -115,114 +206,26 @@ class DrawPuzzle(object):
                 self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="red")
             elif iOld > iNew:
                 self.canvas.create_line(xCoord, yCoord-CANVAS_BLOCK_SIZE, xCoord, yCoord, width=LINE_SIZE, fill="red")
+        
+        self.canvas.update()
 
     def drawEdges(self):
 
-        for i in range(len(edges_horizontal)):
-            for j in range(len(edges_horizontal[i])):
-                if edges_horizontal[i][j]:
+        for i in range(len(self.puzzle.edgesHorizontal)):
+            for j in range(len(self.puzzle.edgesHorizontal[i])):
+                if self.puzzle.edgesHorizontal[i][j]:
                     xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE)
 
-        for i in range(len(edges_vertical)):
-            for j in range(len(edges_vertical[i])):
-                if edges_vertical[i][j]:
+        for i in range(len(self.puzzle.edgesVertical)):
+            for j in range(len(self.puzzle.edgesVertical[i])):
+                if self.puzzle.edgesVertical[i][j]:
                     xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE)
         
         self.canvas.update()
-
-    def drawBasics(self):
-        for i in range(0, GRID_NUMBER_Y):
-            for j in range(0, GRID_NUMBER_X):
-
-                #Can add logic for 2s if need be later
-                if blocks[i][j] == 3:
-
-                    #Check for 0,3 in cardinal direction to 3
-                    if i-1 >= 0:
-                        self.checkCardinal3(i, j, blocks[i-1][j], horizontalEdges = True, checkForward = False)
-
-                    if i+1 < GRID_NUMBER_X:
-                        self.checkCardinal3(i, j, blocks[i+1][j], horizontalEdges = True, checkForward = True)
-
-                    if j-1 >= 0:
-                        self.checkCardinal3(i, j, blocks[i][j-1], horizontalEdges = False, checkForward = False)
-
-                    if j+1 < GRID_NUMBER_Y:
-                        self.checkCardinal3(i, j, blocks[i][j+1], horizontalEdges = False, checkForward = True)
-
-                    #Check for 0,3 diagonal to 3
-                    if i-1 >= 0 and j-1 >= 0:
-                        if blocks[i-1][j-1] == 0:
-                            edges_horizontal[i][j] = True
-                            edges_vertical[i][j] = True
-                        if blocks[i-1][j-1] == 3:
-                            edges_horizontal[i+1][j] = True
-                            edges_vertical[i][j+1] = True
-
-                    if i-1 >= 0 and j+1 < GRID_NUMBER_Y:
-                        if blocks[i-1][j+1] == 0:
-                            edges_horizontal[i][j] = True
-                            edges_vertical[i][j+1] = True
-                        if blocks[i-1][j+1] == 3:
-                            edges_horizontal[i+1][j] = True
-                            edges_vertical[i][j] = True
-
-                    if i+1 < GRID_NUMBER_X and j-1 >= 0:
-                        if blocks[i+1][j-1] == 0:
-                            edges_horizontal[i+1][j] = True
-                            edges_vertical[i][j] = True
-                        if blocks[i+1][j-1] == 3:
-                            edges_horizontal[i][j] = True
-                            edges_vertical[i][j+1] = True
-
-                    if i+1 < GRID_NUMBER_X and j+1 < GRID_NUMBER_Y:
-                        if blocks[i+1][j+1] == 0:
-                            edges_horizontal[i+1][j] = True
-                            edges_vertical[i][j+1] = True
-                        if blocks[i+1][j+1] == 3:
-                            edges_horizontal[i][j] = True
-                            edges_vertical[i][j] = True
-
-        self.drawEdges()
-
-    def checkCardinal3(self, i, j, otherBox, horizontalEdges, checkForward = True):
-
-        if otherBox == 0:
-
-            if horizontalEdges:
-                edges_vertical[i][j] = True
-                edges_vertical[i][j+1] = True
-
-                i1 = i if checkForward else i+1
-                i2 = i+1 if checkForward else i
-
-                edges_horizontal[i1][j] = True
-                edges_horizontal[i2][j-1] = True
-                edges_horizontal[i2][j+1] = True
-                
-            else:
-                edges_horizontal[i][j] = True
-                edges_horizontal[i+1][j] = True
-
-                j1 = j if checkForward else j+1
-                j2 = j+1 if checkForward else j
-
-                edges_vertical[i][j1] = True
-                edges_vertical[i-1][j2] = True
-                edges_vertical[i+1][j2] = True
-
-        elif otherBox == 3:
-
-            if horizontalEdges:
-                edges_horizontal[i][j] = True
-                edges_horizontal[i+1][j] = True
-            else:
-                edges_vertical[i][j] = True
-                edges_vertical[i][j+1] = True
 
 class Ants(object):
 
@@ -232,8 +235,8 @@ class Ants(object):
         self.puzzle = puzzle
         self.puzzleDisplay = puzzleDisplay
 
-        for i in range(0, GRID_NUMBER_Y+1):
-            for j in range(0, GRID_NUMBER_X+1):
+        for i in range(0, self.puzzle.gridNumberY+1):
+            for j in range(0, self.puzzle.gridNumberX+1):
 
                 if self.puzzle.checkPointsEdges(i, j) == 1:
                     self.startingPoints.append([i,j])
@@ -254,8 +257,8 @@ class Ants(object):
         firstIteration = True
 
         ant_puzzle = self.puzzle
-        ant_edges_horizontal = self.puzzle.edges_horizontal
-        ant_edges_vertical = self.puzzle.edges_vertical
+        ant_edgesHorizontal = self.puzzle.edgesHorizontal
+        ant_edgesVertical = self.puzzle.edgesVertical
 
         while True:
         
@@ -264,31 +267,31 @@ class Ants(object):
 
             #Check valid moves
             if (iCur-1 >= 0 
-            and not ant_edges_vertical[iCur-1][jCur]
+            and not ant_edgesVertical[iCur-1][jCur]
             and ant_puzzle.checkPointsEdges(iCur-1, jCur) < 2
             and (iCur-1 < 0 or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur-1, jCur-1))
-            and (iCur-1 < 0  or jCur+1 > GRID_NUMBER_Y or not ant_puzzle.checkBoxComplete(iCur-1, jCur))):
+            and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur-1, jCur))):
                 validMoves.append([iCur-1, jCur])
                 
-            if (iCur+1 <= GRID_NUMBER_X 
-            and not ant_edges_vertical[iCur][jCur]
+            if (iCur+1 <= sself.puzzleelf.gridNumberX 
+            and not ant_edgesVertical[iCur][jCur]
             and ant_puzzle.checkPointsEdges(iCur+1, jCur) < 2
-            and (iCur+1 > GRID_NUMBER_X or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))
-            and (iCur+1 > GRID_NUMBER_X or jCur+1 > GRID_NUMBER_Y or not ant_puzzle.checkBoxComplete(iCur, jCur))):
+            and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))
+            and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur, jCur))):
                 validMoves.append([iCur+1, jCur])
 
             if (jCur-1 >= 0
-            and not ant_edges_horizontal[iCur][jCur-1]
+            and not ant_edgesHorizontal[iCur][jCur-1]
             and ant_puzzle.checkPointsEdges(iCur, jCur-1) < 2
             and (iCur-1 < 0 or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur-1, jCur-1))
-            and (iCur+1 > GRID_NUMBER_X or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))):
+            and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not ant_puzzle.checkBoxComplete(iCur, jCur-1))):
                 validMoves.append([iCur, jCur-1])
 
-            if (jCur+1 <= GRID_NUMBER_Y 
-            and not ant_edges_horizontal[iCur][jCur]
+            if (jCur+1 <= self.puzzle.gridNumberY 
+            and not ant_edgesHorizontal[iCur][jCur]
             and ant_puzzle.checkPointsEdges(iCur, jCur+1) < 2
-            and (iCur-1 < 0  or jCur+1 > GRID_NUMBER_Y or not ant_puzzle.checkBoxComplete(iCur-1, jCur))
-            and (iCur+1 > GRID_NUMBER_X or jCur+1 > GRID_NUMBER_Y or not ant_puzzle.checkBoxComplete(iCur, jCur))):
+            and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur-1, jCur))
+            and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not ant_puzzle.checkBoxComplete(iCur, jCur))):
                 validMoves.append([iCur, jCur+1])
 
             if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
@@ -304,16 +307,16 @@ class Ants(object):
             #Moving horizontal
             if iCur == iNew:
                 if jCur < jNew:
-                    ant_edges_horizontal[iCur][jCur] = True
+                    ant_edgesHorizontal[iCur][jCur] = True
                 elif jCur > jNew:
-                    ant_edges_horizontal[iNew][jNew] = True
+                    ant_edgesHorizontal[iNew][jNew] = True
 
             #Moving vertical
             elif jCur == jNew:
                 if iCur < iNew:
-                    ant_edges_vertical[iCur][jCur] = True
+                    ant_edgesVertical[iCur][jCur] = True
                 elif iCur > iNew:
-                    ant_edges_vertical[iNew][jNew] = True
+                    ant_edgesVertical[iNew][jNew] = True
 
             self.puzzleDisplay.drawEdge(iCur, jCur, iNew, jNew)
 
@@ -325,15 +328,15 @@ class Ants(object):
 
                 if (iNew-1 >= 0 
                 and iNew-1 != iCur 
-                and ant_edges_vertical[iNew-1][jNew]):
+                and ant_edgesVertical[iNew-1][jNew]):
                     iCur = iNew
                     jCur = jNew
                     iNew = iNew-1
                     continue
 
-                if (iNew+1 <= GRID_NUMBER_X 
+                if (iNew+1 <= self.puzzle.gridNumberX 
                 and iNew+1 != iCur
-                and ant_edges_vertical[iNew][jNew]):
+                and ant_edgesVertical[iNew][jNew]):
                     iCur = iNew
                     jCur = jNew
                     iNew = iNew+1
@@ -341,15 +344,15 @@ class Ants(object):
                     
                 if (jNew-1 >= 0 
                 and jNew-1 != jCur
-                and ant_edges_horizontal[iNew][jNew-1]):
+                and ant_edgesHorizontal[iNew][jNew-1]):
                     iCur = iNew
                     jCur = jNew
                     jNew = jNew-1
                     continue
 
-                if (jNew+1 <= GRID_NUMBER_Y 
+                if (jNew+1 <= self.puzzle.gridNumberY 
                 and jNew+1 != jCur
-                and ant_edges_horizontal[iNew][jNew]):
+                and ant_edgesHorizontal[iNew][jNew]):
                     iCur = iNew
                     jCur = jNew
                     jNew = jNew+1
@@ -360,9 +363,9 @@ class Ants(object):
             firstIteration = False
 
         totalEdges = 0
-        for edges in ant_edges_horizontal:
+        for edges in ant_edgesHorizontal:
             totalEdges += edges.count(True)
-        for edges in ant_edges_vertical:
+        for edges in ant_edgesVertical:
             totalEdges += edges.count(True)
         return [totalEdges, ant_puzzle]
 
@@ -377,30 +380,26 @@ parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 args = parser.parse_args()
 
-#Generates puzzle from file
-FILE_NAME = args.filename
-if not path.exists(FILE_NAME):
+#Check if file exists
+file_name = args.filename
+if not path.exists(file_name):
     print('File not found')
     exit()
-puzzle = Puzzle(FILE_NAME)
 
-blocks = puzzle.blocks
-edges_horizontal = puzzle.edges_horizontal
-edges_vertical = puzzle.edges_vertical
+puzzle = Puzzle(file_name)
+puzzleDisplay = DrawPuzzle(puzzle)
+time.sleep(1.0)
+puzzle.basicMoves()
+puzzleDisplay.drawEdges()
 
-#TODO: CLEAN UP THIS SECTION SO THAT PUZZLE CREATED IS GETTING PASSED INTO PUZZLE DISPLAY
-GRID_NUMBER_Y = len(blocks)
-GRID_NUMBER_X = len(blocks[0])
-CANVAS_SIZE_X = CANVAS_BOUNDARY_SIZE*2 + CANVAS_BLOCK_SIZE*GRID_NUMBER_X
-CANVAS_SIZE_Y = CANVAS_BOUNDARY_SIZE*2 + CANVAS_BLOCK_SIZE*GRID_NUMBER_Y
+# firstAnts = Ants(puzzle, puzzleDisplay)
 
-#Draw Puzzle
-puzzleDisplay = DrawPuzzle()  
-firstAnts = Ants(puzzle, puzzleDisplay)
-
-path = firstAnts.findPath()
-# print(path)
-# puzzleDisplay.drawEdges(path[1].edges_horizontal, path[1].edges_vertical)
+# for i in range(0,10):
+    # path = firstAnts.findPath()
+    # newPuzzle = Puzzle("", True)
+    # newPuzzle.edgesHorizontal = path[1].edgesHorizontal
+    # newPuzzle.edgesVertical = path[1].edgesVertical
+    # puzzleDisplay = 
 
 puzzleDisplay.root.mainloop()
 
