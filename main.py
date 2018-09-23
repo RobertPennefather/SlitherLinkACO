@@ -4,6 +4,7 @@ import argparse
 import random
 import copy
 import os.path
+import datetime
 import numpy as np
 from os import path
 from Tkinter import *
@@ -393,6 +394,7 @@ class Ants(object):
 
         bestFitness = 0
         bestSolution = None
+        iterationStartTime = time.clock()
 
         for _ in range(self.populationSize):
 
@@ -531,6 +533,8 @@ class Ants(object):
 
             self.puzzle.edgesHorizontal = edgesHorizontalCopy
             self.puzzle.edgesVertical = edgesVerticalCopy
+
+        print("Best Fitness: " + str(bestFitness) + "\tIteration Time: " + str(time.clock() - iterationStartTime) + "s")
             
         return bestSolution
 
@@ -544,7 +548,7 @@ CANVAS_BOUNDARY_SIZE = 5
 POPULATION_SIZE = 100
 EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
-MAX_ITERATIONS = 100
+MAX_ITERATIONS = 50
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -562,12 +566,12 @@ puzzle = Puzzle(filename)
 puzzleDisplay = DrawPuzzle(puzzle)
 puzzle.basicMoves()
 puzzleDisplay.drawBoard()
+startTime = time.clock()
 
 #Run ACO
 ants = Ants(puzzle, POPULATION_SIZE)
 for iteration in range(MAX_ITERATIONS):
     bestSolution = ants.findBestAnt()
-    print("Best Fitness: " + str(bestSolution.getFitness()))
     puzzle.updatePheromones(bestSolution)
     puzzleDisplay.drawPheromones()
     time.sleep(0.001)
@@ -577,7 +581,7 @@ for iteration in range(MAX_ITERATIONS):
         puzzleDisplay.drawSolution(bestSolution)
         break
 
-print("ACO Complete")
+print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
 
 # print(puzzle.edgesHorizontalPheromones)
 # print(puzzle.edgesVerticalPheromones)
