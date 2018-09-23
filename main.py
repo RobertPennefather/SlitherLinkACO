@@ -4,6 +4,7 @@ import argparse
 import random
 import copy
 import os.path
+import numpy as np
 from os import path
 from Tkinter import *
 
@@ -14,6 +15,11 @@ def isInt(s):
     except ValueError:
         return False
 
+def int2Hex(x):
+    val = hex(x)[2:] # returns something like '0x15', so we remove the '0x'
+    val = "0"+val if len(val)<2 else val # make sure 2 digits
+    return val
+
 class Puzzle(object):
 
     def __init__(self, filename):
@@ -22,11 +28,13 @@ class Puzzle(object):
             with open(filename , 'r') as f:
                 firstLine = f.readline()
                 dimensions = map(int, firstLine.strip().split(','))
-                self.gridNumberX = dimensions[0]
-                self.gridNumberY = dimensions[1]
+                self.gridNumberX = dimensions[1]
+                self.gridNumberY = dimensions[0]
                 self.blocks = [[None for i in range(self.gridNumberX)] for j in range(self.gridNumberY)]
-                self.edgesHorizontal = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
-                self.edgesVertical = [[False for i in range(dimensions[0]+1)] for j in range(dimensions[1]+1)]
+                self.edgesHorizontal = [[False for i in range(dimensions[1])] for j in range(dimensions[0]+1)]
+                self.edgesVertical = [[False for i in range(dimensions[1]+1)] for j in range(dimensions[0])]
+                self.edgesHorizontalPheromones = [[1 for i in range(dimensions[1])] for j in range(dimensions[0]+1)]
+                self.edgesVerticalPheromones = [[1 for i in range(dimensions[1]+1)] for j in range(dimensions[0])]
                 self.startingPoints = []
 
                 i = -1
@@ -40,6 +48,7 @@ class Puzzle(object):
                             self.blocks[j][i] = int(c)
                     i = -1
                     j = j+1
+
         except:
             print('Puzzle File Incorrectly Formatted')
             exit()
@@ -55,13 +64,13 @@ class Puzzle(object):
                     if i-1 >= 0:
                         self.checkCardinal3(i, j, self.blocks[i-1][j], horizontalEdges = True, checkForward = False)
 
-                    if i+1 < self.gridNumberX:
+                    if i+1 < self.gridNumberY:
                         self.checkCardinal3(i, j, self.blocks[i+1][j], horizontalEdges = True, checkForward = True)
 
                     if j-1 >= 0:
                         self.checkCardinal3(i, j, self.blocks[i][j-1], horizontalEdges = False, checkForward = False)
 
-                    if j+1 < self.gridNumberY:
+                    if j+1 < self.gridNumberX:
                         self.checkCardinal3(i, j, self.blocks[i][j+1], horizontalEdges = False, checkForward = True)
 
                     #Check for 0,3 diagonal to 3
@@ -73,7 +82,7 @@ class Puzzle(object):
                             self.edgesHorizontal[i+1][j] = True
                             self.edgesVertical[i][j+1] = True
 
-                    if i-1 >= 0 and j+1 < self.gridNumberY:
+                    if i-1 >= 0 and j+1 < self.gridNumberX:
                         if self.blocks[i-1][j+1] == 0:
                             self.edgesHorizontal[i][j] = True
                             self.edgesVertical[i][j+1] = True
@@ -81,7 +90,7 @@ class Puzzle(object):
                             self.edgesHorizontal[i+1][j] = True
                             self.edgesVertical[i][j] = True
 
-                    if i+1 < self.gridNumberX and j-1 >= 0:
+                    if i+1 < self.gridNumberY and j-1 >= 0:
                         if self.blocks[i+1][j-1] == 0:
                             self.edgesHorizontal[i+1][j] = True
                             self.edgesVertical[i][j] = True
@@ -89,7 +98,7 @@ class Puzzle(object):
                             self.edgesHorizontal[i][j] = True
                             self.edgesVertical[i][j+1] = True
 
-                    if i+1 < self.gridNumberX and j+1 < self.gridNumberY:
+                    if i+1 < self.gridNumberY and j+1 < self.gridNumberX:
                         if self.blocks[i+1][j+1] == 0:
                             self.edgesHorizontal[i+1][j] = True
                             self.edgesVertical[i][j+1] = True
@@ -112,25 +121,34 @@ class Puzzle(object):
 
             if horizontalEdges:
                 self.edgesVertical[i][j] = True
-                self.edgesVertical[i][j+1] = True
+                if j+1 < self.gridNumberX+1:
+                    self.edgesVertical[i][j+1] = True
 
-                i1 = i if checkForward else i+1
-                i2 = i+1 if checkForward else i
+                if i+1 < self.gridNumberY+1:
+                    i1 = i if checkForward else i+1
+                    i2 = i+1 if checkForward else i
 
-                self.edgesHorizontal[i1][j] = True
-                self.edgesHorizontal[i2][j-1] = True
-                self.edgesHorizontal[i2][j+1] = True
+                    self.edgesHorizontal[i1][j] = True
+                    if j-1 >= 0:
+                        self.edgesHorizontal[i2][j-1] = True
+                    if j+1 < self.gridNumberX:
+                        self.edgesHorizontal[i2][j+1] = True
                 
             else:
+
                 self.edgesHorizontal[i][j] = True
-                self.edgesHorizontal[i+1][j] = True
+                if i+1 < self.gridNumberY+1:
+                    self.edgesHorizontal[i+1][j] = True
 
-                j1 = j if checkForward else j+1
-                j2 = j+1 if checkForward else j
+                if j+1 < self.gridNumberX+1:
+                    j1 = j if checkForward else j+1
+                    j2 = j+1 if checkForward else j
 
-                self.edgesVertical[i][j1] = True
-                self.edgesVertical[i-1][j2] = True
-                self.edgesVertical[i+1][j2] = True
+                    self.edgesVertical[i][j1] = True
+                    if i-1 >= 0:
+                        self.edgesVertical[i-1][j2] = True
+                    if i+1 < self.gridNumberY:
+                        self.edgesVertical[i+1][j2] = True
 
         elif otherBox == 3:
 
@@ -146,11 +164,11 @@ class Puzzle(object):
 
         if i-1 >= 0:
             drawnLines[0] = self.edgesVertical[i-1][j]
-        if i+1 <= self.gridNumberX:
+        if i+1 <= self.gridNumberY:
             drawnLines[1] = self.edgesVertical[i][j]
         if j-1 >= 0:
             drawnLines[2] = self.edgesHorizontal[i][j-1]
-        if j+1 <= self.gridNumberY:
+        if j+1 <= self.gridNumberX:
             drawnLines[3] = self.edgesHorizontal[i][j]
 
         return drawnLines.count(True)
@@ -174,6 +192,23 @@ class Puzzle(object):
             return False
         return self.blocks[i][j] <= self.checkBoxEdges(i, j)
 
+    def updatePheromones(self, edgesHorizontal, edgesVertical, fitness):
+        for i in range(0, self.gridNumberY+1):
+            for j in range(0, self.gridNumberX):
+                self.edgesHorizontalPheromones[i][j] *= EVAPORATION_RATE
+                deltaPheromones = fitness * UPDATE_CONST
+
+                if edgesHorizontal[i][j]:
+                    self.edgesHorizontalPheromones[i][j] += deltaPheromones
+
+        for i in range(0, self.gridNumberY):
+            for j in range(0, self.gridNumberX+1):
+                self.edgesVerticalPheromones[i][j] *= EVAPORATION_RATE
+                deltaPheromones = fitness * UPDATE_CONST
+
+                if edgesVertical[i][j]:
+                    self.edgesVerticalPheromones[i][j] += deltaPheromones
+
 class DrawPuzzle(object):
     
     def __init__(self, puzzle):
@@ -183,6 +218,11 @@ class DrawPuzzle(object):
         canvasSizeY = CANVAS_BOUNDARY_SIZE*2 + CANVAS_BLOCK_SIZE*self.puzzle.gridNumberY
         self.canvas = Canvas(self.root, width=canvasSizeX, height = canvasSizeY)
         self.canvas.pack()
+        self.drawInitBoard()
+
+    def drawInitBoard(self):
+        self.canvas.delete("all")
+
         for i in range(0, self.puzzle.gridNumberY+1):
             for j in range(0, self.puzzle.gridNumberX+1):
                 xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE
@@ -222,31 +262,9 @@ class DrawPuzzle(object):
 
         self.canvas.update()
 
-    def drawEdge(self, iOld, jOld, iNew, jNew):
-
-        #Moving horizontal
-        if iOld == iNew:
-            xCoord = CANVAS_BOUNDARY_SIZE + jOld*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-            yCoord = CANVAS_BOUNDARY_SIZE + iOld*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-
-            if jOld < jNew:
-                self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE, fill="red")
-            elif jOld > jNew:
-                self.canvas.create_line(xCoord-CANVAS_BLOCK_SIZE, yCoord, xCoord, yCoord, width=LINE_SIZE, fill="red")
-
-        #Moving vertical
-        elif jOld == jNew:
-            xCoord = CANVAS_BOUNDARY_SIZE + jOld*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-            yCoord = CANVAS_BOUNDARY_SIZE + iOld*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-            
-            if iOld < iNew:
-                self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="red")
-            elif iOld > iNew:
-                self.canvas.create_line(xCoord, yCoord-CANVAS_BLOCK_SIZE, xCoord, yCoord, width=LINE_SIZE, fill="red")
-        
-        self.canvas.update()
-
     def drawAntEdges(self, edgesHorizontal, edgesVertical):
+
+        self.drawInitBoard()
 
         for i in range(len(edgesHorizontal)):
             for j in range(len(edgesHorizontal[i])):
@@ -262,8 +280,37 @@ class DrawPuzzle(object):
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                     self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="red")
         
-        self.canvas.update()
         self.drawBoard()
+        self.canvas.update()
+    
+    def drawAntPheromones(self):
+
+        for i in range(len(self.puzzle.edgesHorizontalPheromones)):
+            for j in range(len(self.puzzle.edgesHorizontalPheromones[i])):
+
+                colour = "red"
+                if not self.puzzle.edgesHorizontalPheromones[i][j] > 1:
+                    colourProportional = int2Hex(int(255*(1-self.puzzle.edgesHorizontalPheromones[i][j])))
+                    colour = "#ff" + colourProportional + colourProportional
+
+                xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE, fill=colour)
+
+        for i in range(len(self.puzzle.edgesVerticalPheromones)):
+            for j in range(len(self.puzzle.edgesVerticalPheromones[i])):
+
+                colour = "red"
+                if not self.puzzle.edgesVerticalPheromones[i][j] > 1:
+                    colourProportional = int2Hex(int(255*(1-self.puzzle.edgesVerticalPheromones[i][j])))
+                    colour = "#ff" + colourProportional + colourProportional
+
+                xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill=colour)
+        
+        self.drawBoard()
+        self.canvas.update()
 
 class Ants(object):
 
@@ -301,39 +348,53 @@ class Ants(object):
                 and not self.puzzle.edgesVertical[iCur-1][jCur]
                 and self.puzzle.checkPointsEdges(iCur-1, jCur) < 2
                 and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
-                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur-1, jCur))):
-                    validMoves.append([iCur-1, jCur])
+                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur-1, jCur))):
+                    validMoves.append([iCur-1, jCur, self.puzzle.edgesVerticalPheromones[iCur-1][jCur]])
                     
-                if (iCur+1 <= self.puzzle.gridNumberX 
+                if (iCur+1 <= self.puzzle.gridNumberY
                 and not self.puzzle.edgesVertical[iCur][jCur]
                 and self.puzzle.checkPointsEdges(iCur+1, jCur) < 2
-                and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))
-                and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur, jCur))):
-                    validMoves.append([iCur+1, jCur])
+                and (iCur+1 > self.puzzle.gridNumberY or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))
+                and (iCur+1 > self.puzzle.gridNumberY or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur, jCur))):
+                    validMoves.append([iCur+1, jCur, self.puzzle.edgesVerticalPheromones[iCur][jCur]])
 
                 if (jCur-1 >= 0
                 and not self.puzzle.edgesHorizontal[iCur][jCur-1]
                 and self.puzzle.checkPointsEdges(iCur, jCur-1) < 2
                 and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
-                and (iCur+1 > self.puzzle.gridNumberX or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))):
-                    validMoves.append([iCur, jCur-1])
+                and (iCur+1 > self.puzzle.gridNumberY or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))):
+                    validMoves.append([iCur, jCur-1, self.puzzle.edgesHorizontalPheromones[iCur][jCur-1]])
 
-                if (jCur+1 <= self.puzzle.gridNumberY 
+                if (jCur+1 <= self.puzzle.gridNumberX 
                 and not self.puzzle.edgesHorizontal[iCur][jCur]
                 and self.puzzle.checkPointsEdges(iCur, jCur+1) < 2
-                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur-1, jCur))
-                and (iCur+1 > self.puzzle.gridNumberX or jCur+1 > self.puzzle.gridNumberY or not self.puzzle.checkBoxComplete(iCur, jCur))):
-                    validMoves.append([iCur, jCur+1])
+                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur-1, jCur))
+                and (iCur+1 > self.puzzle.gridNumberY or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur, jCur))):
+                    validMoves.append([iCur, jCur+1, self.puzzle.edgesHorizontalPheromones[iCur][jCur]])
 
                 if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
                     #print("NO VALID MOVES END ANT")
                     break
+                
+                #Average out weightings 
+                weights = []
+                totalWeight = 0
+                for move in validMoves:
+                    weight = move[-1]
+                    weights.append(weight)
+                    totalWeight += weight
+                for index in range(len(weights)):
+                    weights[index] = weights[index]*1.0/totalWeight*1.0
 
-                randomNum = random.randint(0, len(validMoves)-1)
-                randomValidMove = validMoves[randomNum]
-                #print(validMoves)
+                #Select the random move from index
+                randomIndex = np.random.choice(range(len(weights)), p=weights)
+                randomValidMove = validMoves[randomIndex]
                 iNew = randomValidMove[0]
                 jNew = randomValidMove[1]
+                
+                # print(validMoves)
+                # print(weights)
+                # print(randomValidMove)
 
                 #Moving horizontal
                 if iCur == iNew:
@@ -363,7 +424,7 @@ class Ants(object):
                         iNew = iNew-1
                         continue
 
-                    if (iNew+1 <= self.puzzle.gridNumberX 
+                    if (iNew+1 <= self.puzzle.gridNumberY 
                     and iNew+1 != iCur
                     and self.puzzle.edgesVertical[iNew][jNew]):
                         iCur = iNew
@@ -379,7 +440,7 @@ class Ants(object):
                         jNew = jNew-1
                         continue
 
-                    if (jNew+1 <= self.puzzle.gridNumberY 
+                    if (jNew+1 <= self.puzzle.gridNumberX 
                     and jNew+1 != jCur
                     and self.puzzle.edgesHorizontal[iNew][jNew]):
                         iCur = iNew
@@ -391,6 +452,7 @@ class Ants(object):
                 jCur = jNew
                 firstIteration = False
 
+            #Compare with best ant in this iteration
             curFitness = self.fitness()
             if (curFitness > bestFitness):
                 bestEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
@@ -427,7 +489,12 @@ CANVAS_BLOCK_SIZE = 60
 CIRCLE_SIZE = 5
 LINE_SIZE = 2
 CANVAS_BOUNDARY_SIZE = 5
-POPULATION_SIZE = 20
+
+#Global ACO Constants
+POPULATION_SIZE = 100
+EVAPORATION_RATE = 0.9
+UPDATE_CONST = 0.01
+MAX_ITERATIONS = 100
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -440,18 +507,30 @@ if not path.exists(filename):
     print('File not found')
     exit()
 
+#Intialise board
 puzzle = Puzzle(filename)
 puzzleDisplay = DrawPuzzle(puzzle)
 puzzle.basicMoves()
 puzzleDisplay.drawBoard()
 
+#Run ACO
 ants = Ants(puzzle, POPULATION_SIZE)
-bestRoute = ants.findBestAnt()
-print("Best Fitness: " + str(bestRoute[2]))
-puzzleDisplay.drawAntEdges( bestRoute[0], bestRoute[1])
+for _ in range(MAX_ITERATIONS):
+    bestRoute = ants.findBestAnt()
+    print("Best Fitness: " + str(bestRoute[2]))
+    puzzle.updatePheromones( bestRoute[0], bestRoute[1], bestRoute[2])
+    # puzzleDisplay.drawAntEdges( bestRoute[0], bestRoute[1])
+    puzzleDisplay.drawAntPheromones()
+    time.sleep(0.001)
 
+print(puzzle.edgesHorizontalPheromones)
+print(puzzle.edgesVerticalPheromones)
+
+#IMPORTANT
+#TODO Stop if complete
+
+#LATER
 #TODO Better fitness function
-#TODO Update pheremones
-#TODO Make ant route use pheremones
+#TODO Make a Solution Class?
 
 puzzleDisplay.root.mainloop()
