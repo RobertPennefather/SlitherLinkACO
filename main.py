@@ -20,6 +20,69 @@ def int2Hex(x):
     val = "0"+val if len(val)<2 else val # make sure 2 digits
     return val
 
+class Solution(object):
+
+    def __init__(self, puzzle, edgesHorizontal, edgesVertical, iStart, jStart, iEnd, jEnd):
+        self.puzzle = puzzle
+        self.edgesHorizontal = edgesHorizontal
+        self.edgesVertical = edgesVertical
+        self.sameStart = iStart == iEnd and jStart == jEnd
+
+    def getFitness(self):
+
+        originalEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
+        originalEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+
+        self.puzzle.edgesHorizontal = self.edgesHorizontal
+        self.puzzle.edgesVertical = self.edgesVertical
+
+        #Total number of Edges drawn by ant
+        totalEdges = 0
+        for edges in self.puzzle.edgesHorizontal:
+            totalEdges += edges.count(True)
+        for edges in self.puzzle.edgesVertical:
+            totalEdges += edges.count(True)
+
+        #Total number of boxes complete
+        totalComplete = 0
+        for i in range(0, self.puzzle.gridNumberY):
+            for j in range(0, self.puzzle.gridNumberX):
+                if self.puzzle.checkBoxComplete(i,j):
+                    #totalComplete += 1
+                    totalComplete += self.puzzle.blocks[i][j] + 1
+                    #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
+
+        self.puzzle.edgesHorizontal = originalEdgesHorizontal
+        self.puzzle.edgesVertical = originalEdgesVertical
+
+        return totalComplete
+
+    def isSolutionComplete(self):
+
+        if not self.sameStart:
+            return False
+
+        originalEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
+        originalEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+
+        self.puzzle.edgesHorizontal = self.edgesHorizontal
+        self.puzzle.edgesVertical = self.edgesVertical
+
+        #Total number of boxes with numbers vs complete 
+        totalNumbers = 0
+        totalComplete = 0
+        for i in range(0, self.puzzle.gridNumberY):
+            for j in range(0, self.puzzle.gridNumberX):
+                if not self.puzzle.blocks[i][j] == None:
+                    totalNumbers += 1
+                if self.puzzle.checkBoxComplete(i,j):
+                    totalComplete += 1
+
+        self.puzzle.edgesHorizontal = originalEdgesHorizontal
+        self.puzzle.edgesVertical = originalEdgesVertical
+
+        return totalNumbers == totalComplete
+
 class Puzzle(object):
 
     def __init__(self, filename):
@@ -193,13 +256,16 @@ class Puzzle(object):
             return False
         return self.blocks[i][j] <= self.checkBoxEdges(i, j)
 
-    def updatePheromones(self, edgesHorizontal, edgesVertical, fitness):
+    def updatePheromones(self, solution):
+
+        fitness = solution.getFitness()
+
         for i in range(0, self.gridNumberY+1):
             for j in range(0, self.gridNumberX):
                 self.edgesHorizontalPheromones[i][j] *= EVAPORATION_RATE
                 deltaPheromones = fitness * UPDATE_CONST
 
-                if edgesHorizontal[i][j]:
+                if solution.edgesHorizontal[i][j]:
                     self.edgesHorizontalPheromones[i][j] += deltaPheromones
 
         for i in range(0, self.gridNumberY):
@@ -207,7 +273,7 @@ class Puzzle(object):
                 self.edgesVerticalPheromones[i][j] *= EVAPORATION_RATE
                 deltaPheromones = fitness * UPDATE_CONST
 
-                if edgesVertical[i][j]:
+                if solution.edgesVertical[i][j]:
                     self.edgesVerticalPheromones[i][j] += deltaPheromones
 
 class DrawPuzzle(object):
@@ -222,7 +288,6 @@ class DrawPuzzle(object):
         self.drawInitBoard()
 
     def drawInitBoard(self):
-        self.canvas.delete("all")
 
         for i in range(0, self.puzzle.gridNumberY+1):
             for j in range(0, self.puzzle.gridNumberX+1):
@@ -263,28 +328,32 @@ class DrawPuzzle(object):
 
         self.canvas.update()
 
-    def drawAntEdges(self, edgesHorizontal, edgesVertical):
+    def drawSolution(self, solution):
 
-        self.drawInitBoard()
-
-        for i in range(len(edgesHorizontal)):
-            for j in range(len(edgesHorizontal[i])):
-                if edgesHorizontal[i][j]:
-                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+        for i in range(len(solution.edgesHorizontal)):
+            for j in range(len(solution.edgesHorizontal[i])):
+                xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                if solution.edgesHorizontal[i][j]:
                     self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE, fill="red")
+                else:
+                    self.canvas.create_line(xCoord, yCoord, xCoord+CANVAS_BLOCK_SIZE, yCoord, width=LINE_SIZE, fill="white")
 
-        for i in range(len(edgesVertical)):
-            for j in range(len(edgesVertical[i])):
-                if edgesVertical[i][j]:
-                    xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
-                    yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+        for i in range(len(solution.edgesVertical)):
+            for j in range(len(solution.edgesVertical[i])):
+
+                xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
+                if solution.edgesVertical[i][j]:
                     self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="red")
+                else:
+                    self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill="white")
         
+        self.drawInitBoard()
         self.drawBoard()
         self.canvas.update()
     
-    def drawAntPheromones(self):
+    def drawPheromones(self):
 
         for i in range(len(self.puzzle.edgesHorizontalPheromones)):
             for j in range(len(self.puzzle.edgesHorizontalPheromones[i])):
@@ -310,6 +379,7 @@ class DrawPuzzle(object):
                 yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
                 self.canvas.create_line(xCoord, yCoord, xCoord, yCoord+CANVAS_BLOCK_SIZE, width=LINE_SIZE, fill=colour)
         
+        self.drawInitBoard()
         self.drawBoard()
         self.canvas.update()
 
@@ -321,9 +391,8 @@ class Ants(object):
 
     def findBestAnt(self):
 
-        bestEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
-        bestEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
         bestFitness = 0
+        bestSolution = None
 
         for _ in range(self.populationSize):
 
@@ -454,36 +523,16 @@ class Ants(object):
                 firstIteration = False
 
             #Compare with best ant in this iteration
-            curFitness = self.fitness()
-            if (curFitness > bestFitness):
-                bestEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
-                bestEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+            curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+            curFitness = curSolution.getFitness()
+            if bestSolution == None or curFitness > bestFitness:
                 bestFitness = curFitness
+                bestSolution = curSolution
 
             self.puzzle.edgesHorizontal = edgesHorizontalCopy
             self.puzzle.edgesVertical = edgesVerticalCopy
             
-        return [bestEdgesHorizontal, bestEdgesVertical, bestFitness]
-
-    def fitness(self):
-
-        #Total number of Edges drawn by ant
-        totalEdges = 0
-        for edges in self.puzzle.edgesHorizontal:
-            totalEdges += edges.count(True)
-        for edges in self.puzzle.edgesVertical:
-            totalEdges += edges.count(True)
-
-        #Total number of boxes complete
-        totalComplete = 0
-        for i in range(0, self.puzzle.gridNumberY):
-            for j in range(0, self.puzzle.gridNumberX):
-                if self.puzzle.checkBoxComplete(i,j):
-                    #totalComplete += 1
-                    totalComplete += self.puzzle.blocks[i][j] + 1
-                    #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
-
-        return totalComplete
+        return bestSolution
 
 #Global Graphic Sizes
 CANVAS_BLOCK_SIZE = 60
@@ -516,22 +565,26 @@ puzzleDisplay.drawBoard()
 
 #Run ACO
 ants = Ants(puzzle, POPULATION_SIZE)
-for _ in range(MAX_ITERATIONS):
-    bestRoute = ants.findBestAnt()
-    print("Best Fitness: " + str(bestRoute[2]))
-    puzzle.updatePheromones( bestRoute[0], bestRoute[1], bestRoute[2])
-    # puzzleDisplay.drawAntEdges( bestRoute[0], bestRoute[1])
-    puzzleDisplay.drawAntPheromones()
+for iteration in range(MAX_ITERATIONS):
+    bestSolution = ants.findBestAnt()
+    print("Best Fitness: " + str(bestSolution.getFitness()))
+    puzzle.updatePheromones(bestSolution)
+    puzzleDisplay.drawPheromones()
     time.sleep(0.001)
 
-print(puzzle.edgesHorizontalPheromones)
-print(puzzle.edgesVerticalPheromones)
+    if bestSolution.isSolutionComplete():
+        print("Solution Found on Iteration: " + str(iteration+1))
+        puzzleDisplay.drawSolution(bestSolution)
+        break
 
-#IMPORTANT
-#TODO Stop if complete
+print("ACO Complete")
 
-#LATER
+# print(puzzle.edgesHorizontalPheromones)
+# print(puzzle.edgesVerticalPheromones)
+
+#IMPORTANT TODO
+
+#LATER TODO
 #TODO Better fitness function
-#TODO Make a Solution Class?
 
 puzzleDisplay.root.mainloop()
