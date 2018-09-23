@@ -49,8 +49,9 @@ class Puzzle(object):
                     i = -1
                     j = j+1
 
-        except:
+        except Exception as e:
             print('Puzzle File Incorrectly Formatted')
+            print('Error: ' + str(e))
             exit()
 
     def basicMoves(self):
@@ -502,7 +503,7 @@ parser.add_argument('filename', help='name of puzzle file required to solve')
 args = parser.parse_args()
 
 #Check if file exists
-filename = args.filename
+filename = "puzzles/" + args.filename
 if not path.exists(filename):
     print('File not found')
     exit()
