@@ -1,5 +1,6 @@
 #Librarys
 import time
+import math
 import argparse
 import random
 import copy
@@ -27,7 +28,8 @@ class Solution(object):
         self.puzzle = puzzle
         self.edgesHorizontal = edgesHorizontal
         self.edgesVertical = edgesVertical
-        self.sameStart = iStart == iEnd and jStart == jEnd
+        self.returnToStart = iStart == iEnd and jStart == jEnd
+        self.distanceFromStart = abs(iEnd-iStart) + abs(jEnd-jStart)
 
     def getFitness(self):
 
@@ -56,11 +58,11 @@ class Solution(object):
         self.puzzle.edgesHorizontal = originalEdgesHorizontal
         self.puzzle.edgesVertical = originalEdgesVertical
 
-        return totalComplete
+        return totalComplete - self.distanceFromStart*5
 
     def isSolutionComplete(self):
 
-        if not self.sameStart:
+        if not self.returnToStart:
             return False
 
         originalEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
@@ -260,11 +262,11 @@ class Puzzle(object):
     def updatePheromones(self, solution):
 
         fitness = solution.getFitness()
+        deltaPheromones = fitness * UPDATE_CONST
 
         for i in range(0, self.gridNumberY+1):
             for j in range(0, self.gridNumberX):
                 self.edgesHorizontalPheromones[i][j] *= EVAPORATION_RATE
-                deltaPheromones = fitness * UPDATE_CONST
 
                 if solution.edgesHorizontal[i][j]:
                     self.edgesHorizontalPheromones[i][j] += deltaPheromones
@@ -272,7 +274,6 @@ class Puzzle(object):
         for i in range(0, self.gridNumberY):
             for j in range(0, self.gridNumberX+1):
                 self.edgesVerticalPheromones[i][j] *= EVAPORATION_RATE
-                deltaPheromones = fitness * UPDATE_CONST
 
                 if solution.edgesVertical[i][j]:
                     self.edgesVerticalPheromones[i][j] += deltaPheromones
@@ -548,7 +549,7 @@ CANVAS_BOUNDARY_SIZE = 5
 POPULATION_SIZE = 100
 EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
-MAX_ITERATIONS = 50
+MAX_ITERATIONS = 100
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -573,7 +574,8 @@ ants = Ants(puzzle, POPULATION_SIZE)
 for iteration in range(MAX_ITERATIONS):
     bestSolution = ants.findBestAnt()
     puzzle.updatePheromones(bestSolution)
-    puzzleDisplay.drawPheromones()
+    # puzzleDisplay.drawPheromones()
+    puzzleDisplay.drawSolution(bestSolution)
     time.sleep(0.001)
 
     if bestSolution.isSolutionComplete():
@@ -587,8 +589,12 @@ print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
 # print(puzzle.edgesVerticalPheromones)
 
 #IMPORTANT TODO
+#TODO Lay pheromones for every starting point
+#TODO Clear the drawing see if that improves the time?
 
 #LATER TODO
 #TODO Better fitness function
+#TODO Dynamic fitness function
+#TODO Show solution
 
 puzzleDisplay.root.mainloop()
