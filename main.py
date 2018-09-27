@@ -564,7 +564,7 @@ CANVAS_BOUNDARY_SIZE = 5
 TESTING_REPEATS = 20
 
 #Global ACO Constants
-POPULATION_SIZE = 20
+POPULATION_SIZE = 5
 EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
 MAX_ITERATIONS = 100
@@ -595,12 +595,18 @@ if args.testing:
 
         #Run ACO
         ants = Ants(puzzle, POPULATION_SIZE)
+        solutionFound = False
         for iteration in range(MAX_ITERATIONS):
-            bestSolution = ants.findBestAnt()
-            puzzle.updatePheromones(bestSolution)
+            bestSolutions = ants.findBestAnt()
+            puzzle.updatePheromones(bestSolutions)
 
-            if bestSolution.isSolutionComplete():
-                completed.append(iteration+1)
+            for bestSolution in bestSolutions:
+                if bestSolution.isSolutionComplete():
+                    solutionFound = True
+                    completed.append(iteration+1)
+                    break
+
+            if solutionFound:
                 break
 
         print("ACO Complete " + str(index+1) + "/" + str(TESTING_REPEATS) + " times")
@@ -632,16 +638,23 @@ else:
 
     #Run ACO
     ants = Ants(puzzle, POPULATION_SIZE)
+    solutionFound = False
     for iteration in range(MAX_ITERATIONS):
-        bestSolution = ants.findBestAnt()
-        puzzle.updatePheromones(bestSolution)
+        bestSolutions = ants.findBestAnt()
+        puzzle.updatePheromones(bestSolutions)
         puzzleDisplay.drawPheromones()
-        #puzzleDisplay.drawSolution(bestSolution)
-        #time.sleep(0.001)
+        time.sleep(0.0001)
 
-        if bestSolution.isSolutionComplete():
-            print("Solution Found on Iteration: " + str(iteration+1))
-            puzzleDisplay.drawSolution(bestSolution)
+        for bestSolution in bestSolutions:
+            # puzzleDisplay.drawSolution(bestSolution)
+
+            if bestSolution.isSolutionComplete():
+                print("Solution Found on Iteration: " + str(iteration+1))
+                puzzleDisplay.drawSolution(bestSolution)
+                solutionFound = True
+                break
+
+        if solutionFound:
             break
 
     print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
