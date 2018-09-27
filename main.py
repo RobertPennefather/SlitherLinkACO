@@ -535,7 +535,7 @@ class Ants(object):
             self.puzzle.edgesHorizontal = edgesHorizontalCopy
             self.puzzle.edgesVertical = edgesVerticalCopy
 
-        print("Best Fitness: " + str(bestFitness) + "\tIteration Time: " + str(time.clock() - iterationStartTime) + "s")
+        #print("Best Fitness: " + str(bestFitness) + "\tIteration Time: " + str(time.clock() - iterationStartTime) + "s")
             
         return bestSolution
 
@@ -545,8 +545,11 @@ CIRCLE_SIZE = 5
 LINE_SIZE = 2
 CANVAS_BOUNDARY_SIZE = 5
 
+#Testing Constant
+TESTING_REPEATS = 20
+
 #Global ACO Constants
-POPULATION_SIZE = 100
+POPULATION_SIZE = 20
 EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
 MAX_ITERATIONS = 100
@@ -554,6 +557,7 @@ MAX_ITERATIONS = 100
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
+parser.add_argument('-t', '--testing', action='store_true', help='include flag to test ACO with puzzle ' + str(TESTING_REPEATS) + ' times')
 args = parser.parse_args()
 
 #Check if file exists
@@ -562,31 +566,72 @@ if not path.exists(filename):
     print('File not found')
     exit()
 
-#Intialise board
-puzzle = Puzzle(filename)
-puzzleDisplay = DrawPuzzle(puzzle)
-puzzle.basicMoves()
-puzzleDisplay.drawBoard()
-startTime = time.clock()
+if args.testing:
+    print("Testing ACO")
 
-#Run ACO
-ants = Ants(puzzle, POPULATION_SIZE)
-for iteration in range(MAX_ITERATIONS):
-    bestSolution = ants.findBestAnt()
-    puzzle.updatePheromones(bestSolution)
-    # puzzleDisplay.drawPheromones()
-    puzzleDisplay.drawSolution(bestSolution)
-    time.sleep(0.001)
+    startTime = time.clock()
+    completed = []
 
-    if bestSolution.isSolutionComplete():
-        print("Solution Found on Iteration: " + str(iteration+1))
-        puzzleDisplay.drawSolution(bestSolution)
-        break
+    for index in range(TESTING_REPEATS):
 
-print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
+        #Intialise board
+        puzzle = Puzzle(filename)
+        puzzle.basicMoves()
 
-# print(puzzle.edgesHorizontalPheromones)
-# print(puzzle.edgesVerticalPheromones)
+        #Run ACO
+        ants = Ants(puzzle, POPULATION_SIZE)
+        for iteration in range(MAX_ITERATIONS):
+            bestSolution = ants.findBestAnt()
+            puzzle.updatePheromones(bestSolution)
+
+            if bestSolution.isSolutionComplete():
+                completed.append(iteration+1)
+                break
+
+        print("ACO Complete " + str(index+1) + "/" + str(TESTING_REPEATS) + " times")
+    
+    totalTime = time.clock() - startTime
+    avgTime = totalTime*1.0/TESTING_REPEATS*1.0
+    numComplete = len(completed)
+    averageComplete = -1
+    if not numComplete == 0:
+        averageComplete = sum(completed)/numComplete
+
+    print("--------------------")
+    print("ACO Testing Complete")
+    print("Total Time:\t\t" + str(totalTime) + "s")
+    print("Average Time:\t\t" + str(avgTime) + "s")
+    print("Puzzle Complete:\t" + str(numComplete) + "/" + str(TESTING_REPEATS) + " times")
+    print("Average Complete Itr:\t" + str(averageComplete) + "/" + str(MAX_ITERATIONS) + " itrs")
+    print("--------------------\n")
+
+else:
+    print("Starting ACO")
+
+    #Intialise board
+    puzzle = Puzzle(filename)
+    puzzleDisplay = DrawPuzzle(puzzle)
+    puzzle.basicMoves()
+    puzzleDisplay.drawBoard()
+    startTime = time.clock()
+
+    #Run ACO
+    ants = Ants(puzzle, POPULATION_SIZE)
+    for iteration in range(MAX_ITERATIONS):
+        bestSolution = ants.findBestAnt()
+        puzzle.updatePheromones(bestSolution)
+        puzzleDisplay.drawPheromones()
+        #puzzleDisplay.drawSolution(bestSolution)
+        #time.sleep(0.001)
+
+        if bestSolution.isSolutionComplete():
+            print("Solution Found on Iteration: " + str(iteration+1))
+            puzzleDisplay.drawSolution(bestSolution)
+            break
+
+    print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
+
+    puzzleDisplay.root.mainloop()
 
 #IMPORTANT TODO
 #TODO Lay pheromones for every starting point
@@ -596,5 +641,3 @@ print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
 #TODO Better fitness function
 #TODO Dynamic fitness function
 #TODO Show solution
-
-puzzleDisplay.root.mainloop()
