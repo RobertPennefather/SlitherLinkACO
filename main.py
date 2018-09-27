@@ -560,9 +560,6 @@ CIRCLE_SIZE = 5
 LINE_SIZE = 2
 CANVAS_BOUNDARY_SIZE = 5
 
-#Testing Constant
-TESTING_REPEATS = 20
-
 #Global ACO Constants
 POPULATION_SIZE = 5
 EVAPORATION_RATE = 0.9
@@ -572,7 +569,7 @@ MAX_ITERATIONS = 100
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
-parser.add_argument('-t', '--testing', action='store_true', help='include flag to test ACO with puzzle ' + str(TESTING_REPEATS) + ' times')
+parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 args = parser.parse_args()
 
 #Check if file exists
@@ -581,9 +578,9 @@ if not path.exists(filename):
     print('File not found')
     exit()
 
-if args.testing:
+if args.testing != None:
     print("Testing ACO")
-
+    TESTING_REPEATS = args.testing[0]
     startTime = time.clock()
     completed = []
 
