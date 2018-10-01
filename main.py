@@ -57,10 +57,34 @@ class Solution(object):
                     totalComplete += self.puzzle.blocks[i][j] + 1
                     #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
 
+        # Total numbered boxes
+        totalNumbers = 0
+        for i in range(0, self.puzzle.gridNumberY):
+            for j in range(0, self.puzzle.gridNumberX):
+                if not self.puzzle.blocks[i][j] == None:
+                    totalNumbers += 1
+
+        # Proportion of completed boxes out of total numbered boxes
+        completeProp = totalComplete*1.0/totalNumbers*1.0
+
         self.puzzle.edgesHorizontal = originalEdgesHorizontal
         self.puzzle.edgesVertical = originalEdgesVertical
 
-        return totalComplete - self.distanceFromStart*5
+        # work out the maximum possible distance away from a starting point
+        # should move this to the puzzle init because it doesn't change
+        # or make it specific to the actual starting point?
+        
+        maxDistHorizontal = len(originalEdgesHorizontal)
+        maxDistVertical = len(originalEdgesVertical)
+        maxDist = maxDistHorizontal + maxDistVertical
+        
+        # distance as a percentage of total distance
+        distProp = self.distanceFromStart*1.0/maxDist*.10
+
+        # invert this so we can add rather than subtract
+        invDistProp = 1 - distProp
+        
+        return completeWeight*completeProp + distanceWeight*invDistProp
 
     def isSolutionComplete(self):
 
@@ -561,10 +585,12 @@ LINE_SIZE = 2
 CANVAS_BOUNDARY_SIZE = 5
 
 #Global ACO Constants
-POPULATION_SIZE = 5
+POPULATION_SIZE = 20
 EVAPORATION_RATE = 0.9
-UPDATE_CONST = 0.01
+UPDATE_CONST = 1
 MAX_ITERATIONS = 100
+completeWeight = 0.7
+distanceWeight = 0.3
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -639,11 +665,11 @@ else:
     for iteration in range(MAX_ITERATIONS):
         bestSolutions = ants.findBestAnt()
         puzzle.updatePheromones(bestSolutions)
-        puzzleDisplay.drawPheromones()
+        #puzzleDisplay.drawPheromones()
         time.sleep(0.0001)
 
         for bestSolution in bestSolutions:
-            # puzzleDisplay.drawSolution(bestSolution)
+            puzzleDisplay.drawSolution(bestSolution)
 
             if bestSolution.isSolutionComplete():
                 print("Solution Found on Iteration: " + str(iteration+1))
