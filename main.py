@@ -79,7 +79,7 @@ class Solution(object):
         maxDist = maxDistHorizontal + maxDistVertical
         
         # distance as a percentage of total distance
-        distProp = self.distanceFromStart*1.0/maxDist*.10
+        distProp = self.distanceFromStart*1.0/maxDist*1.0
 
         # invert this so we can add rather than subtract
         invDistProp = 1 - distProp
@@ -596,6 +596,7 @@ distanceWeight = 0.3
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
+parser.add_argument('-w','--weighting',type=int,nargs=1,help='single argument, weighting on completeness')
 args = parser.parse_args()
 
 #Check if file exists
@@ -603,6 +604,12 @@ filename = "puzzles/" + args.filename
 if not path.exists(filename):
     print('File not found')
     exit()
+
+if args.weighting != None:
+    completeWeight = round(args.weighting[0],1)
+    distanceWeight = round(1-completeWeight,1)
+    print('Weighting for boxes completed: ' + str(completeWeight))
+    print('Weighting for distance: ' + str(distanceWeight))
 
 if args.testing != None:
     print("Testing ACO")
