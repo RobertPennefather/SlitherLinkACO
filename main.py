@@ -47,18 +47,25 @@ class Solution(object):
             totalEdges += edges.count(True)
 
         #Total number of boxes complete
-        totalComplete = 0
+        totalBoxesComplete = 0.0
         for i in range(0, self.puzzle.gridNumberY):
             for j in range(0, self.puzzle.gridNumberX):
                 if self.puzzle.checkBoxComplete(i,j):
                     #totalComplete += 1
-                    totalComplete += self.puzzle.blocks[i][j] + 1
+                    totalBoxesComplete += self.puzzle.blocks[i][j] + 1
                     #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
+
+        #Total number of starting points hit
+        totalStartingPointsComplete = 0.0
+        for point in self.puzzle.startingPoints:
+            if self.puzzle.checkPointsEdges(point[0], point[1]) == 2:
+                totalStartingPointsComplete += 1
+        totalStartingPointsComplete /= len(self.puzzle.startingPoints)
 
         self.puzzle.edgesHorizontal = originalEdgesHorizontal
         self.puzzle.edgesVertical = originalEdgesVertical
 
-        return totalComplete - self.distanceFromStart*5
+        return totalBoxesComplete - self.distanceFromStart*5 + totalStartingPointsComplete
 
     def isSolutionComplete(self):
 
@@ -121,6 +128,36 @@ class Puzzle(object):
             exit()
 
     def basicMoves(self):
+
+        #Corner moves
+        if self.blocks[0][0] == 2:
+            self.edgesVertical[1][0] = True
+            self.edgesHorizontal[0][1] = True
+        elif self.blocks[0][0] == 3:
+            self.edgesVertical[0][0] = True
+            self.edgesHorizontal[0][0] = True
+
+        if self.blocks[0][self.gridNumberX-1] == 2:
+            self.edgesVertical[1][self.gridNumberX] = True
+            self.edgesHorizontal[0][self.gridNumberX-2] = True
+        elif self.blocks[0][self.gridNumberX-1] == 3:
+            self.edgesVertical[0][self.gridNumberX] = True
+            self.edgesHorizontal[0][self.gridNumberX-1] = True
+
+        if self.blocks[self.gridNumberY-1][0] == 2:
+            self.edgesVertical[self.gridNumberY-2][0] = True
+            self.edgesHorizontal[self.gridNumberY][1] = True
+        elif self.blocks[self.gridNumberY-1][0] == 3:
+            self.edgesVertical[self.gridNumberY-1][0] = True
+            self.edgesHorizontal[self.gridNumberY][0] = True
+
+        if self.blocks[self.gridNumberY-1][self.gridNumberX-1] == 2:
+            self.edgesVertical[self.gridNumberY-2][self.gridNumberX] = True
+            self.edgesHorizontal[self.gridNumberY][self.gridNumberX-2] = True
+        elif self.blocks[self.gridNumberY-1][self.gridNumberX-1] == 3:
+            self.edgesVertical[self.gridNumberY-1][self.gridNumberX] = True
+            self.edgesHorizontal[self.gridNumberY][self.gridNumberX-1] = True
+
         for i in range(0, self.gridNumberY):
             for j in range(0, self.gridNumberX):
 
@@ -323,7 +360,6 @@ class DrawPuzzle(object):
             for j in range(0, self.puzzle.gridNumberX+1):
 
                 if self.puzzle.checkPointsEdges(i, j) == 1:
-                    self.puzzle.startingPoints.append([i,j])
                     xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE -1.5
                     yCoord = CANVAS_BOUNDARY_SIZE + i*CANVAS_BLOCK_SIZE -1.5
                     self.canvas.create_oval(xCoord, yCoord, xCoord+CIRCLE_SIZE+3, yCoord+CIRCLE_SIZE+3, fill="red", outline="")
@@ -566,7 +602,6 @@ if not path.exists(filename):
 if args.testing != None:
     print("Testing ACO")
     TESTING_REPEATS = args.testing[0]
-
     startTime = time.clock()
     completed = []
 
@@ -618,8 +653,10 @@ else:
     for iteration in range(MAX_ITERATIONS):
         bestSolution = ants.findBestAnt()
         puzzle.updatePheromones(bestSolution)
-        puzzleDisplay.drawPheromones()
-        #puzzleDisplay.drawSolution(bestSolution)
+        # puzzleDisplay.drawPheromones()
+        puzzleDisplay.drawSolution(bestSolution)
+        puzzleDisplay.root.mainloop()
+        exit()
         #time.sleep(0.001)
 
         if bestSolution.isSolutionComplete():
