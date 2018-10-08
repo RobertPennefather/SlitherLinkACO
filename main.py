@@ -51,8 +51,8 @@ class Solution(object):
         completeProp = totalBoxesComplete*1.0/totalBoxesNumbers*1.0
 
         #Total number of starting points hit
-        self.puzzle.findStartingPoints()
-        singlePointsNum = len(self.puzzle.startingPoints)
+        self.puzzle.findSinglePoints()
+        singlePointsNum = len(self.puzzle.singlePoints)
         pointsNum = self.puzzle.gridNumberX * self.puzzle.gridNumberY
         singleProp = 1 - (singlePointsNum*1.0/pointsNum*1.0)
 
@@ -729,7 +729,7 @@ CANVAS_BOUNDARY_SIZE = 5
 #Global ACO Constants
 POPULATION_SIZE = 20
 EVAPORATION_RATE = 0.9
-UPDATE_CONST = 0.01
+UPDATE_CONST = 1
 MAX_ITERATIONS = 50
 
 #Fitness weights
@@ -788,7 +788,7 @@ if args.testing != None:
     print("ACO Testing Complete")
     print("Total Time:\t\t" + str(totalTime) + "s")
     print("Puzzle Complete:\t" + str(numComplete) + "/" + str(TESTING_REPEATS) + " times")
-    print("Average Complete Time:\t\t" + str(avgTime) + "s")
+    print("Average Complete Time:\t" + str(avgTime) + "s")
     print("Average Complete Itr:\t" + str(averageComplete) + "/" + str(MAX_ITERATIONS) + " itrs")
     print("--------------------\n")
 
@@ -807,8 +807,8 @@ else:
     for iteration in range(MAX_ITERATIONS):
         bestSolution = ants.findBestAnt()
         puzzle.updatePheromones(bestSolution)
-        # puzzleDisplay.drawPheromones()
-        puzzleDisplay.drawSolution(bestSolution)
+        puzzleDisplay.drawPheromones()
+        # puzzleDisplay.drawSolution(bestSolution)
         # puzzleDisplay.root.mainloop()
         # exit()
         #time.sleep(0.001)
@@ -823,4 +823,7 @@ else:
     puzzleDisplay.root.mainloop()
 
 #IMPORTANT TODO
+#TODO Variables as args
 #TODO Lay pheromones for every starting point
+#TODO early cancel
+#TODO stepwise changes in weightings
