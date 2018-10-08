@@ -138,7 +138,7 @@ class Puzzle(object):
 
         except Exception as e:
             print('Puzzle File Incorrectly Formatted')
-            print('Error: ' + str(e))
+            print('ERROR: ' + str(e))
             exit()
 
     def basicMoves(self):
@@ -740,14 +740,49 @@ WEIGHT_SINGLE = 0.33
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
-parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 parser.add_argument('-p', '--pheremones', action = 'store_true', help='when not testing display pheremones instead of best solution')
+parser.add_argument('-w', '--weights', type = float, nargs = '*', help='3 floats representing fitness weighting for; completeness, distance, single points, respectively (must not be more than 1 combined)')
+parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 args = parser.parse_args()
+
+#Check weights are correctly formatted
+if args.weights == None:
+    print('Default weights used')
+elif not len(args.weights) == 3:
+    print('WARNING: Weights must be three values')
+else:
+    weightSum = 0.0
+    for index in range(0,3):
+        if len(args.weights) > index:
+            if args.weights[index] < 0 or 1 < args.weights[index]:
+                print('ERROR: Weights must be between 0 and 1')
+                exit()
+            weightSum += args.weights[index]
+
+            if index == 0:
+                WEIGHT_COMPLETE = args.weights[index]
+            if index == 1:
+                WEIGHT_DISTANCE = args.weights[index]
+            if index == 2:
+                WEIGHT_SINGLE = 1.0-args.weights[0]-args.weights[1]
+
+    if weightSum > 1.0:
+        print('ERROR: Combined weights cannot exceed 1')
+        exit()
+
+    print("--------------------")
+    print('Using weights:')
+    print('  WEIGHT_COMPLETE:\t' + str(WEIGHT_COMPLETE))
+    print('  WEIGHT_DISTANCE:\t' + str(WEIGHT_DISTANCE))
+    print('  WEIGHT_SINGLE:\t'   + str(WEIGHT_SINGLE))
+    print("--------------------")
+
+exit()
 
 #Check if file exists
 filename = "puzzles/" + args.filename
 if not path.exists(filename):
-    print('File not found')
+    print('ERROR: File not found')
     exit()
 
 if args.testing != None:
