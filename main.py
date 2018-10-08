@@ -39,33 +39,31 @@ class Solution(object):
         self.puzzle.edgesHorizontal = self.edgesHorizontal
         self.puzzle.edgesVertical = self.edgesVertical
 
-        #Total number of Edges drawn by ant
-        totalEdges = 0
-        for edges in self.puzzle.edgesHorizontal:
-            totalEdges += edges.count(True)
-        for edges in self.puzzle.edgesVertical:
-            totalEdges += edges.count(True)
-
         #Total number of boxes complete
         totalBoxesComplete = 0.0
+        totalBoxesNumbers = 0.0
         for i in range(0, self.puzzle.gridNumberY):
             for j in range(0, self.puzzle.gridNumberX):
                 if self.puzzle.checkBoxComplete(i,j):
-                    #totalComplete += 1
                     totalBoxesComplete += self.puzzle.blocks[i][j] + 1
-                    #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
+                if not self.puzzle.blocks[i][j] == None:
+                    totalBoxesNumbers += 1
+        completeProp = totalBoxesComplete*1.0/totalBoxesNumbers*1.0
 
         #Total number of starting points hit
-        totalStartingPointsComplete = 0.0
-        for point in self.puzzle.startingPoints:
-            if self.puzzle.checkPointsEdges(point[0], point[1]) == 2:
-                totalStartingPointsComplete += 1
-        totalStartingPointsComplete /= len(self.puzzle.startingPoints)
+        self.puzzle.findStartingPoints()
+        singlePointsNum = len(self.puzzle.startingPoints)
+        pointsNum = self.puzzle.gridNumberX * self.puzzle.gridNumberY
+        singleProp = 1 - (singlePointsNum*1.0/pointsNum*1.0)
+
+        #Get distance as proportional
+        maxDist = self.puzzle.gridNumberX + self.puzzle.gridNumberY
+        distProp = 1 - (self.distanceFromStart*1.0/maxDist*1.0)
 
         self.puzzle.edgesHorizontal = originalEdgesHorizontal
         self.puzzle.edgesVertical = originalEdgesVertical
 
-        return totalBoxesComplete - self.distanceFromStart*5 + totalStartingPointsComplete
+        return WEIGHT_COMPLETE*completeProp + WEIGHT_DISTANCE*distProp + WEIGHT_SINGLE*singleProp
 
     def isSolutionComplete(self):
 
@@ -734,6 +732,11 @@ EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
 MAX_ITERATIONS = 50
 
+#Fitness weights
+WEIGHT_COMPLETE = 0.33
+WEIGHT_DISTANCE = 0.33
+WEIGHT_SINGLE = 0.33
+
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
@@ -821,9 +824,3 @@ else:
 
 #IMPORTANT TODO
 #TODO Lay pheromones for every starting point
-#TODO Clear the drawing see if that improves the time?
-
-#LATER TODO
-#TODO Better fitness function
-#TODO Dynamic fitness function
-#TODO Show solution
