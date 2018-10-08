@@ -751,12 +751,14 @@ if args.testing != None:
     TESTING_REPEATS = args.testing[0]
     startTime = time.clock()
     completed = []
+    completedTime = []
 
     for index in range(TESTING_REPEATS):
 
         #Intialise board
         puzzle = Puzzle(filename)
         puzzle.basicMoves()
+        startTimeIteration = time.clock()
 
         #Run ACO
         ants = Ants(puzzle, POPULATION_SIZE)
@@ -766,22 +768,24 @@ if args.testing != None:
 
             if bestSolution.isSolutionComplete():
                 completed.append(iteration+1)
+                completedTime.append(time.clock() - startTimeIteration)
                 break
 
         print("ACO Complete " + str(index+1) + "/" + str(TESTING_REPEATS) + " times")
     
     totalTime = time.clock() - startTime
-    avgTime = totalTime*1.0/TESTING_REPEATS*1.0
     numComplete = len(completed)
+    avgTime = -1
     averageComplete = -1
     if not numComplete == 0:
+        avgTime = sum(completedTime)*1.0/numComplete*1.0
         averageComplete = sum(completed)/numComplete
 
     print("--------------------")
     print("ACO Testing Complete")
     print("Total Time:\t\t" + str(totalTime) + "s")
-    print("Average Time:\t\t" + str(avgTime) + "s")
     print("Puzzle Complete:\t" + str(numComplete) + "/" + str(TESTING_REPEATS) + " times")
+    print("Average Complete Time:\t\t" + str(avgTime) + "s")
     print("Average Complete Itr:\t" + str(averageComplete) + "/" + str(MAX_ITERATIONS) + " itrs")
     print("--------------------\n")
 
