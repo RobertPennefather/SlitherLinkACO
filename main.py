@@ -53,10 +53,7 @@ class Solution(object):
         for i in range(0, self.puzzle.gridNumberY):
             for j in range(0, self.puzzle.gridNumberX):
                 if self.puzzle.checkBoxComplete(i,j):
-                    #totalComplete += 1
-                    totalComplete += self.puzzle.blocks[i][j] + 1
-                    #totalComplete += (self.puzzle.blocks[i][j] + 1)^2
-
+                    totalComplete += 1
         # Total numbered boxes
         totalNumbers = 0
         for i in range(0, self.puzzle.gridNumberY):
@@ -64,9 +61,10 @@ class Solution(object):
                 if not self.puzzle.blocks[i][j] == None:
                     totalNumbers += 1
 
+
         # Proportion of completed boxes out of total numbered boxes
         completeProp = totalComplete*1.0/totalNumbers*1.0
-
+        
         self.puzzle.edgesHorizontal = originalEdgesHorizontal
         self.puzzle.edgesVertical = originalEdgesVertical
 
@@ -83,7 +81,7 @@ class Solution(object):
 
         # invert this so we can add rather than subtract
         invDistProp = 1 - distProp
-        
+
         return completeWeight*completeProp + distanceWeight*invDistProp
 
     def isSolutionComplete(self):
@@ -596,7 +594,7 @@ distanceWeight = 0.3
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
-parser.add_argument('-w','--weighting',type=int,nargs=1,help='single argument, weighting on completeness')
+parser.add_argument('-w','--weighting',type=float,nargs=1,help='single argument, weighting on completeness')
 args = parser.parse_args()
 
 #Check if file exists
@@ -637,8 +635,9 @@ if args.testing != None:
                     break
 
             if solutionFound:
+                print("Solution was found with fitness " + str(bestSolution.getFitness()))
                 break
-
+    
         print("ACO Complete " + str(index+1) + "/" + str(TESTING_REPEATS) + " times")
     
     totalTime = time.clock() - startTime
@@ -680,6 +679,7 @@ else:
 
             if bestSolution.isSolutionComplete():
                 print("Solution Found on Iteration: " + str(iteration+1))
+                print("Solution's fitness: " + str(bestSolution.getFitness()))
                 puzzleDisplay.drawSolution(bestSolution)
                 solutionFound = True
                 break
