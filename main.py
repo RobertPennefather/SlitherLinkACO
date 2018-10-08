@@ -78,6 +78,21 @@ class Solution(object):
         self.puzzle.edgesHorizontal = self.edgesHorizontal
         self.puzzle.edgesVertical = self.edgesVertical
 
+        #Check one entire loop
+        self.puzzle.findSinglePoints()
+        if not len(self.puzzle.singlePoints) == 0:
+            self.puzzle.edgesHorizontal = originalEdgesHorizontal
+            self.puzzle.edgesVertical = originalEdgesVertical
+            return False
+
+        #Check no point has 3 edges
+        for i in range(0, self.puzzle.gridNumberY+1):
+            for j in range(0, self.puzzle.gridNumberX+1):
+                if self.puzzle.checkPointsEdges(i, j) == 3:
+                    self.puzzle.edgesHorizontal = originalEdgesHorizontal
+                    self.puzzle.edgesVertical = originalEdgesVertical
+                    return False
+        
         #Total number of boxes with numbers vs complete 
         totalNumbers = 0
         totalComplete = 0
@@ -104,11 +119,12 @@ class Puzzle(object):
                 self.gridNumberX = dimensions[1]
                 self.gridNumberY = dimensions[0]
                 self.blocks = [[None for i in range(self.gridNumberX)] for j in range(self.gridNumberY)]
-                self.edgesHorizontal = [[False for i in range(dimensions[1])] for j in range(dimensions[0]+1)]
-                self.edgesVertical = [[False for i in range(dimensions[1]+1)] for j in range(dimensions[0])]
+                self.edgesHorizontal = [[None for i in range(dimensions[1])] for j in range(dimensions[0]+1)]
+                self.edgesVertical = [[None for i in range(dimensions[1]+1)] for j in range(dimensions[0])]
                 self.edgesHorizontalPheromones = [[1 for i in range(dimensions[1])] for j in range(dimensions[0]+1)]
                 self.edgesVerticalPheromones = [[1 for i in range(dimensions[1]+1)] for j in range(dimensions[0])]
                 self.startingPoints = []
+                self.singlePoints = []
 
                 i = -1
                 j = 0
@@ -210,6 +226,7 @@ class Puzzle(object):
                             self.edgesHorizontal[i][j] = True
                             self.edgesVertical[i][j] = True
 
+        self.updateEdges()
         self.findStartingPoints()
 
     def findStartingPoints(self):
@@ -218,6 +235,13 @@ class Puzzle(object):
             for j in range(0, self.gridNumberX+1):
                 if self.checkPointsEdges(i, j) == 1:
                     self.startingPoints.append([i,j])
+
+    def findSinglePoints(self):
+        self.singlePoints = []
+        for i in range(0, self.gridNumberY+1):
+            for j in range(0, self.gridNumberX+1):
+                if self.checkPointsEdges(i, j) == 1:
+                    self.singlePoints.append([i,j])
 
     def checkCardinal3(self, i, j, otherBox, horizontalEdges, checkForward = True):
 
@@ -278,23 +302,154 @@ class Puzzle(object):
         return drawnLines.count(True)
 
     def checkBoxEdges(self, i, j):
-        edgesDrawn = 0
 
+        edgesDrawn = 0
         if self.edgesHorizontal[i][j]:
-            edgesDrawn = edgesDrawn + 1
+            edgesDrawn += 1
         if self.edgesHorizontal[i+1][j]:
-            edgesDrawn = edgesDrawn + 1
+            edgesDrawn += 1
         if self.edgesVertical[i][j]:
-            edgesDrawn = edgesDrawn + 1
+            edgesDrawn += 1
         if self.edgesVertical[i][j+1]:
-            edgesDrawn = edgesDrawn + 1
+            edgesDrawn += 1
+
+        edgesBlocked = 0
+        if self.edgesHorizontal[i][j] == False:
+            edgesBlocked += 1
+        if self.edgesHorizontal[i+1][j] == False:
+            edgesBlocked += 1
+        if self.edgesVertical[i][j] == False:
+            edgesBlocked += 1
+        if self.edgesVertical[i][j+1] == False:
+            edgesBlocked += 1
         
-        return edgesDrawn
+        return [edgesDrawn,edgesBlocked]
 
     def checkBoxComplete(self, i, j):
         if self.blocks[i][j] == None:
             return False
-        return self.blocks[i][j] <= self.checkBoxEdges(i, j)
+        return self.blocks[i][j] <= self.checkBoxEdges(i, j)[0]
+
+    def updateEdges(self):
+
+        updated = True
+        while updated:
+            updated = False
+
+            for i in range(0, self.gridNumberY+1):
+                for j in range(0, self.gridNumberX+1):
+                    if self.checkPointsEdges(i, j) == 2:
+                        self.completePointEdges(i, j)
+
+            for i in range(0, self.gridNumberY):
+                for j in range(0, self.gridNumberX):
+                    if self.completeBox(i, j):
+                        updated = True
+            
+            self.findSinglePoints()
+
+            for point in self.singlePoints:
+                validMoves = self.getValidMoves(point[0], point[1])
+                if len(validMoves) == 1:
+                    iCur = point[0]
+                    jCur = point[1]
+                    iNew = validMoves[0][0]
+                    jNew = validMoves[0][1]
+
+                    #Check if closing loop
+                    match = False
+                    for pointNew in self.singlePoints:
+                        if pointNew[0] == iNew and pointNew[1] == jNew:
+                            match = True
+                            break
+                    if match:
+                        continue
+
+                    #Moving horizontal
+                    if iCur == iNew:
+                        if jCur < jNew:
+                            self.edgesHorizontal[iCur][jCur] = True
+                        elif jCur > jNew:
+                            self.edgesHorizontal[iNew][jNew] = True
+
+                    #Moving vertical
+                    elif jCur == jNew:
+                        if iCur < iNew:
+                            self.edgesVertical[iCur][jCur] = True
+                        elif iCur > iNew:
+                            self.edgesVertical[iNew][jNew] = True
+
+                    #Update line
+                    updated = True
+                    self.findSinglePoints()
+
+            self.findSinglePoints()
+
+    def completePointEdges(self, i, j):
+
+        if i-1 >= 0 and not self.edgesVertical[i-1][j]:
+            self.edgesVertical[i-1][j] = False
+        if i+1 <= self.gridNumberY and not self.edgesVertical[i][j]:
+            self.edgesVertical[i][j] = False
+        if j-1 >= 0 and not self.edgesHorizontal[i][j-1]:
+            self.edgesHorizontal[i][j-1] = False
+        if j+1 <= self.gridNumberX and not self.edgesHorizontal[i][j]:
+            self.edgesHorizontal[i][j] = False
+    
+    def completeBox(self, i, j):
+        updated = False
+        if self.blocks[i][j] != None:
+            if self.blocks[i][j] == 4-self.checkBoxEdges(i, j)[1]:
+                
+                if self.edgesHorizontal[i][j] == None:
+                    self.edgesHorizontal[i][j] = True
+                    updated = True
+                if self.edgesHorizontal[i+1][j] == None:
+                    self.edgesHorizontal[i+1][j] = True
+                    updated = True
+                if self.edgesVertical[i][j] == None:
+                    self.edgesVertical[i][j] = True
+                    updated = True
+                if self.edgesVertical[i][j+1] == None:
+                    self.edgesVertical[i][j+1] = True
+                    updated = True
+                
+        return updated
+
+    def getValidMoves(self, i , j):
+
+        validMoves = []
+
+        #Check valid moves
+        if (i-1 >= 0 
+        and not self.edgesVertical[i-1][j]
+        and self.checkPointsEdges(i-1, j) < 2
+        and (i-1 < 0 or j-1 < 0 or not self.checkBoxComplete(i-1, j-1))
+        and (i-1 < 0  or j+1 > self.gridNumberX or not self.checkBoxComplete(i-1, j))):
+            validMoves.append([i-1, j, self.edgesVerticalPheromones[i-1][j]])
+            
+        if (i+1 <= self.gridNumberY
+        and not self.edgesVertical[i][j]
+        and self.checkPointsEdges(i+1, j) < 2
+        and (i+1 > self.gridNumberY or j-1 < 0 or not self.checkBoxComplete(i, j-1))
+        and (i+1 > self.gridNumberY or j+1 > self.gridNumberX or not self.checkBoxComplete(i, j))):
+            validMoves.append([i+1, j, self.edgesVerticalPheromones[i][j]])
+
+        if (j-1 >= 0
+        and not self.edgesHorizontal[i][j-1]
+        and self.checkPointsEdges(i, j-1) < 2
+        and (i-1 < 0 or j-1 < 0 or not self.checkBoxComplete(i-1, j-1))
+        and (i+1 > self.gridNumberY or j-1 < 0 or not self.checkBoxComplete(i, j-1))):
+            validMoves.append([i, j-1, self.edgesHorizontalPheromones[i][j-1]])
+
+        if (j+1 <= self.gridNumberX 
+        and not self.edgesHorizontal[i][j]
+        and self.checkPointsEdges(i, j+1) < 2
+        and (i-1 < 0  or j+1 > self.gridNumberX or not self.checkBoxComplete(i-1, j))
+        and (i+1 > self.gridNumberY or j+1 > self.gridNumberX or not self.checkBoxComplete(i, j))):
+            validMoves.append([i, j+1, self.edgesHorizontalPheromones[i][j]])
+
+        return validMoves
 
     def updatePheromones(self, solution):
 
@@ -448,38 +603,8 @@ class Ants(object):
             edgesVerticalCopy = copy.deepcopy(self.puzzle.edgesVertical)
 
             while True:
-            
-                #print(str(iCur)+","+str(jCur))
-                validMoves = []
-
-                #Check valid moves
-                if (iCur-1 >= 0 
-                and not self.puzzle.edgesVertical[iCur-1][jCur]
-                and self.puzzle.checkPointsEdges(iCur-1, jCur) < 2
-                and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
-                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur-1, jCur))):
-                    validMoves.append([iCur-1, jCur, self.puzzle.edgesVerticalPheromones[iCur-1][jCur]])
-                    
-                if (iCur+1 <= self.puzzle.gridNumberY
-                and not self.puzzle.edgesVertical[iCur][jCur]
-                and self.puzzle.checkPointsEdges(iCur+1, jCur) < 2
-                and (iCur+1 > self.puzzle.gridNumberY or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))
-                and (iCur+1 > self.puzzle.gridNumberY or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur, jCur))):
-                    validMoves.append([iCur+1, jCur, self.puzzle.edgesVerticalPheromones[iCur][jCur]])
-
-                if (jCur-1 >= 0
-                and not self.puzzle.edgesHorizontal[iCur][jCur-1]
-                and self.puzzle.checkPointsEdges(iCur, jCur-1) < 2
-                and (iCur-1 < 0 or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur-1, jCur-1))
-                and (iCur+1 > self.puzzle.gridNumberY or jCur-1 < 0 or not self.puzzle.checkBoxComplete(iCur, jCur-1))):
-                    validMoves.append([iCur, jCur-1, self.puzzle.edgesHorizontalPheromones[iCur][jCur-1]])
-
-                if (jCur+1 <= self.puzzle.gridNumberX 
-                and not self.puzzle.edgesHorizontal[iCur][jCur]
-                and self.puzzle.checkPointsEdges(iCur, jCur+1) < 2
-                and (iCur-1 < 0  or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur-1, jCur))
-                and (iCur+1 > self.puzzle.gridNumberY or jCur+1 > self.puzzle.gridNumberX or not self.puzzle.checkBoxComplete(iCur, jCur))):
-                    validMoves.append([iCur, jCur+1, self.puzzle.edgesHorizontalPheromones[iCur][jCur]])
+        
+                validMoves = self.puzzle.getValidMoves(iCur, jCur)
 
                 if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
                     #print("NO VALID MOVES END ANT")
@@ -519,6 +644,22 @@ class Ants(object):
                     elif iCur > iNew:
                         self.puzzle.edgesVertical[iNew][jNew] = True
 
+                # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+                # puzzleDisplay.drawSolution(itrSolution)
+                # time.sleep(0.5)
+                #Update any confirmed edges, effectively acting as heuristic
+                self.puzzle.updateEdges()
+
+                #If any single line is blocked end
+                # blockedPoint = False
+                # for point in self.puzzle.singlePoints:
+                #     pointValidMoves = self.puzzle.getValidMoves(point[0], point[1])
+                #     if len(pointValidMoves) == 0:
+                #         blockedPoint = True
+                #         break
+                # if blockedPoint:
+                #     break
+
                 #Move along already drawn lines
                 while (self.puzzle.checkPointsEdges(iNew, jNew) == 2 
                 and not (iNew == iStart and jNew == jStart)):
@@ -556,10 +697,16 @@ class Ants(object):
                         jCur = jNew
                         jNew = jNew+1
                         continue
+                
+                # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+                # puzzleDisplay.drawSolution(itrSolution)
+                # time.sleep(0.5)
 
                 iCur = iNew
                 jCur = jNew
                 firstIteration = False
+
+                #Check if puzzle is already failed
 
             #Compare with best ant in this iteration
             curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
@@ -585,7 +732,7 @@ CANVAS_BOUNDARY_SIZE = 5
 POPULATION_SIZE = 20
 EVAPORATION_RATE = 0.9
 UPDATE_CONST = 0.01
-MAX_ITERATIONS = 100
+MAX_ITERATIONS = 50
 
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
@@ -655,8 +802,8 @@ else:
         puzzle.updatePheromones(bestSolution)
         # puzzleDisplay.drawPheromones()
         puzzleDisplay.drawSolution(bestSolution)
-        puzzleDisplay.root.mainloop()
-        exit()
+        # puzzleDisplay.root.mainloop()
+        # exit()
         #time.sleep(0.001)
 
         if bestSolution.isSolutionComplete():
