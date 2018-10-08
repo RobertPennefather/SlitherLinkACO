@@ -326,7 +326,7 @@ class Puzzle(object):
     def checkBoxComplete(self, i, j):
         if self.blocks[i][j] == None:
             return False
-        return self.blocks[i][j] <= self.checkBoxEdges(i, j)[0]
+        return self.blocks[i][j] == self.checkBoxEdges(i, j)[0]
 
     def updateEdges(self):
 
@@ -399,16 +399,23 @@ class Puzzle(object):
         if self.blocks[i][j] != None:
             if self.blocks[i][j] == 4-self.checkBoxEdges(i, j)[1]:
                 
-                if self.edgesHorizontal[i][j] == None:
+                if (self.edgesHorizontal[i][j] == None
+                and (i-1 < 0  or j+1 > self.gridNumberX or not self.checkBoxComplete(i-1, j))):
                     self.edgesHorizontal[i][j] = True
                     updated = True
-                if self.edgesHorizontal[i+1][j] == None:
+
+                if (self.edgesHorizontal[i+1][j] == None
+                and (i+2 > self.gridNumberY or j+1 > self.gridNumberX or not self.checkBoxComplete(i+1, j))):
                     self.edgesHorizontal[i+1][j] = True
                     updated = True
-                if self.edgesVertical[i][j] == None:
+
+                if (self.edgesVertical[i][j] == None
+                and (i+1 > self.gridNumberY or j-1 < 0 or not self.checkBoxComplete(i, j-1))):
                     self.edgesVertical[i][j] = True
                     updated = True
-                if self.edgesVertical[i][j+1] == None:
+
+                if (self.edgesVertical[i][j+1] == None
+                and (i+1 > self.gridNumberY or j+2 > self.gridNumberX or not self.checkBoxComplete(i, j+1))):
                     self.edgesVertical[i][j+1] = True
                     updated = True
                 
@@ -420,28 +427,28 @@ class Puzzle(object):
 
         #Check valid moves
         if (i-1 >= 0 
-        and not self.edgesVertical[i-1][j]
+        and self.edgesVertical[i-1][j] == None
         and self.checkPointsEdges(i-1, j) < 2
         and (i-1 < 0 or j-1 < 0 or not self.checkBoxComplete(i-1, j-1))
         and (i-1 < 0  or j+1 > self.gridNumberX or not self.checkBoxComplete(i-1, j))):
             validMoves.append([i-1, j, self.edgesVerticalPheromones[i-1][j]])
             
         if (i+1 <= self.gridNumberY
-        and not self.edgesVertical[i][j]
+        and self.edgesVertical[i][j] == None
         and self.checkPointsEdges(i+1, j) < 2
         and (i+1 > self.gridNumberY or j-1 < 0 or not self.checkBoxComplete(i, j-1))
         and (i+1 > self.gridNumberY or j+1 > self.gridNumberX or not self.checkBoxComplete(i, j))):
             validMoves.append([i+1, j, self.edgesVerticalPheromones[i][j]])
 
         if (j-1 >= 0
-        and not self.edgesHorizontal[i][j-1]
+        and self.edgesHorizontal[i][j-1] == None
         and self.checkPointsEdges(i, j-1) < 2
         and (i-1 < 0 or j-1 < 0 or not self.checkBoxComplete(i-1, j-1))
         and (i+1 > self.gridNumberY or j-1 < 0 or not self.checkBoxComplete(i, j-1))):
             validMoves.append([i, j-1, self.edgesHorizontalPheromones[i][j-1]])
 
         if (j+1 <= self.gridNumberX 
-        and not self.edgesHorizontal[i][j]
+        and self.edgesHorizontal[i][j] == None
         and self.checkPointsEdges(i, j+1) < 2
         and (i-1 < 0  or j+1 > self.gridNumberX or not self.checkBoxComplete(i-1, j))
         and (i+1 > self.gridNumberY or j+1 > self.gridNumberX or not self.checkBoxComplete(i, j))):
@@ -605,7 +612,6 @@ class Ants(object):
                 validMoves = self.puzzle.getValidMoves(iCur, jCur)
 
                 if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
-                    #print("NO VALID MOVES END ANT")
                     break
                 
                 #Average out weightings 
@@ -623,10 +629,6 @@ class Ants(object):
                 randomValidMove = validMoves[randomIndex]
                 iNew = randomValidMove[0]
                 jNew = randomValidMove[1]
-                
-                # print(validMoves)
-                # print(weights)
-                # print(randomValidMove)
 
                 #Moving horizontal
                 if iCur == iNew:
@@ -715,8 +717,6 @@ class Ants(object):
 
             self.puzzle.edgesHorizontal = edgesHorizontalCopy
             self.puzzle.edgesVertical = edgesVerticalCopy
-
-        #print("Best Fitness: " + str(bestFitness) + "\tIteration Time: " + str(time.clock() - iterationStartTime) + "s")
             
         return bestSolution
 
@@ -728,7 +728,7 @@ CANVAS_BOUNDARY_SIZE = 5
 
 #Global ACO Constants
 POPULATION_SIZE = 20
-EVAPORATION_RATE = 0.9
+EVAPORATION_RATE = 0.90
 UPDATE_CONST = 1
 MAX_ITERATIONS = 50
 
@@ -741,6 +741,7 @@ WEIGHT_SINGLE = 0.33
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
+parser.add_argument('-p', '--pheremones', action = 'store_true', help='when not testing display pheremones instead of best solution')
 args = parser.parse_args()
 
 #Check if file exists
@@ -807,11 +808,12 @@ else:
     for iteration in range(MAX_ITERATIONS):
         bestSolution = ants.findBestAnt()
         puzzle.updatePheromones(bestSolution)
-        puzzleDisplay.drawPheromones()
-        # puzzleDisplay.drawSolution(bestSolution)
-        # puzzleDisplay.root.mainloop()
-        # exit()
-        #time.sleep(0.001)
+
+        #Type of display produced
+        if args.pheremones:
+            puzzleDisplay.drawPheromones()
+        else:
+            puzzleDisplay.drawSolution(bestSolution)
 
         if bestSolution.isSolutionComplete():
             print("Solution Found on Iteration: " + str(iteration+1))
@@ -827,3 +829,4 @@ else:
 #TODO Lay pheromones for every starting point
 #TODO early cancel
 #TODO stepwise changes in weightings
+#TODO local pheremones
