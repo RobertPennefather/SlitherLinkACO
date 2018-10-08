@@ -330,6 +330,10 @@ class Puzzle(object):
 
     def updateEdges(self):
 
+        #If -r is on don't update edges
+        if not USE_HEURISTIC:
+            return
+
         updated = True
         while updated:
             updated = False
@@ -740,16 +744,20 @@ WEIGHT_SINGLE = 0.33
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
-parser.add_argument('-p', '--pheremones', action = 'store_true', help='when not testing display pheremones instead of best solution')
+parser.add_argument('-p', '--pheremones', action = 'store_true', help='display pheremones instead of best solution (-t flag must be off)')
+parser.add_argument('-r', '--random', action = 'store_true', help='flag turns off the use of the heuristic with the ACO')
 parser.add_argument('-w', '--weights', type = float, nargs = '*', help='3 floats representing fitness weighting for; completeness, distance, single points, respectively (must not be more than 1 combined)')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 args = parser.parse_args()
+
+USE_HEURISTIC = not args.random
 
 #Check weights are correctly formatted
 if args.weights == None:
     print('Default weights used')
 elif not len(args.weights) == 3:
-    print('WARNING: Weights must be three values')
+    print('ERROR: Weights must be three values')
+    exit()
 else:
     weightSum = 0.0
     for index in range(0,3):
@@ -770,14 +778,12 @@ else:
         print('ERROR: Combined weights cannot exceed 1')
         exit()
 
-    print("--------------------")
-    print('Using weights:')
-    print('  WEIGHT_COMPLETE:\t' + str(WEIGHT_COMPLETE))
-    print('  WEIGHT_DISTANCE:\t' + str(WEIGHT_DISTANCE))
-    print('  WEIGHT_SINGLE:\t'   + str(WEIGHT_SINGLE))
-    print("--------------------")
-
-exit()
+print("--------------------")
+print('Using weights:')
+print('  WEIGHT_COMPLETE:\t' + str(WEIGHT_COMPLETE))
+print('  WEIGHT_DISTANCE:\t' + str(WEIGHT_DISTANCE))
+print('  WEIGHT_SINGLE:\t'   + str(WEIGHT_SINGLE))
+print("--------------------")
 
 #Check if file exists
 filename = "puzzles/" + args.filename
@@ -860,7 +866,7 @@ else:
     puzzleDisplay.root.mainloop()
 
 #IMPORTANT TODO
-#TODO Variables as args
+#TODO All Variables as args
 #TODO Lay pheromones for every starting point
 #TODO early cancel
 #TODO stepwise changes in weightings
