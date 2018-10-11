@@ -349,7 +349,6 @@ class Puzzle(object):
                         updated = True
             
             self.findSinglePoints()
-
             for point in self.singlePoints:
                 validMoves = self.getValidMoves(point[0], point[1])
                 if len(validMoves) == 1:
@@ -710,7 +709,17 @@ class Ants(object):
                 jCur = jNew
                 firstIteration = False
 
-                #Check if puzzle is already failed
+                #Check if puzzle is already failed, only if -c activated
+                if USE_EARLY_CANCEL:
+                    possibleMoves = True
+                    self.puzzle.findSinglePoints()
+                    for point in self.puzzle.singlePoints:
+                        validMoves = self.puzzle.getValidMoves(point[0], point[1])
+                        if len(validMoves) == 0:
+                            possibleMoves = False
+                            break
+                    if not possibleMoves:
+                        break
 
             #Compare with best ant in this iteration
             curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
@@ -746,11 +755,13 @@ parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 parser.add_argument('-p', '--pheremones', action = 'store_true', help='display pheremones instead of best solution (-t flag must be off)')
 parser.add_argument('-r', '--random', action = 'store_true', help='flag turns off the use of the heuristic with the ACO')
+parser.add_argument('-c', '--cancel', action = 'store_true', help='flag turns on the early cancel if ACO is known to be wrong')
 parser.add_argument('-w', '--weights', type = float, nargs = '*', help='3 floats representing fitness weighting for; completeness, distance, single points, respectively (must not be more than 1 combined)')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 args = parser.parse_args()
 
 USE_HEURISTIC = not args.random
+USE_EARLY_CANCEL = args.cancel
 
 #Check weights are correctly formatted
 if args.weights == None:
@@ -865,9 +876,6 @@ else:
 
     puzzleDisplay.root.mainloop()
 
-#IMPORTANT TODO
-#TODO All Variables as args
 #TODO Lay pheromones for every starting point
-#TODO early cancel
 #TODO stepwise changes in weightings
 #TODO local pheremones
