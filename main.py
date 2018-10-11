@@ -459,24 +459,30 @@ class Puzzle(object):
 
         return validMoves
 
-    def updatePheromones(self, solution):
-
-        fitness = solution.getFitness()
-        deltaPheromones = fitness * UPDATE_CONST
-
+    def updatePheromones(self, solutions):
+        
         for i in range(0, self.gridNumberY+1):
             for j in range(0, self.gridNumberX):
                 self.edgesHorizontalPheromones[i][j] *= EVAPORATION_RATE
-
-                if solution.edgesHorizontal[i][j]:
-                    self.edgesHorizontalPheromones[i][j] += deltaPheromones
 
         for i in range(0, self.gridNumberY):
             for j in range(0, self.gridNumberX+1):
                 self.edgesVerticalPheromones[i][j] *= EVAPORATION_RATE
 
-                if solution.edgesVertical[i][j]:
-                    self.edgesVerticalPheromones[i][j] += deltaPheromones
+        for solution in solutions:
+
+            fitness = solution.getFitness()
+            deltaPheromones = fitness * UPDATE_CONST
+
+            for i in range(0, self.gridNumberY+1):
+                for j in range(0, self.gridNumberX):
+                    if solution.edgesHorizontal[i][j]:
+                        self.edgesHorizontalPheromones[i][j] += deltaPheromones
+
+            for i in range(0, self.gridNumberY):
+                for j in range(0, self.gridNumberX+1):
+                    if solution.edgesVertical[i][j]:
+                        self.edgesVerticalPheromones[i][j] += deltaPheromones
 
 class DrawPuzzle(object):
     
@@ -592,146 +598,158 @@ class Ants(object):
 
     def findBestAnt(self):
 
-        bestFitness = 0
-        bestSolution = None
+        #Get all best starting points, only if -s activated
+        numberOfStartingPoints = 1
+        if USE_STARTING_POINTS:
+            numberOfStartingPoints = len(self.puzzle.startingPoints)
+
+        bestFitness = [0] * numberOfStartingPoints
+        bestSolutions = [None] * numberOfStartingPoints
         iterationStartTime = time.clock()
 
-        for _ in range(self.populationSize):
+        for startingPointIndex in range(numberOfStartingPoints):
 
-            self.puzzle = puzzle
-            randomNum = random.randint(0, len(self.puzzle.startingPoints)-1)
-            randomStartingPoint = self.puzzle.startingPoints[randomNum]
-            iStart = randomStartingPoint[0]
-            jStart = randomStartingPoint[1]
-            iCur = iStart
-            jCur = jStart
-            firstIteration = True
+            startingPoint = self.puzzle.startingPoints[startingPointIndex]
 
-            edgesHorizontalCopy = copy.deepcopy(self.puzzle.edgesHorizontal)
-            edgesVerticalCopy = copy.deepcopy(self.puzzle.edgesVertical)
+            #Randomise initial starting point, if -s not activated
+            if not USE_STARTING_POINTS:
+                randomNum = random.randint(0, len(self.puzzle.startingPoints)-1)
+                startingPoint = self.puzzle.startingPoints[randomNum]
 
-            while True:
-        
-                validMoves = self.puzzle.getValidMoves(iCur, jCur)
+            for _ in range(self.populationSize):
 
-                if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
-                    break
-                
-                #Average out weightings 
-                weights = []
-                totalWeight = 0
-                for move in validMoves:
-                    weight = move[-1]
-                    weights.append(weight)
-                    totalWeight += weight
-                for index in range(len(weights)):
-                    weights[index] = weights[index]*1.0/totalWeight*1.0
+                self.puzzle = puzzle
+                iStart = startingPoint[0]
+                jStart = startingPoint[1]
+                iCur = iStart
+                jCur = jStart
+                firstIteration = True
 
-                #Select the random move from index
-                randomIndex = np.random.choice(range(len(weights)), p=weights)
-                randomValidMove = validMoves[randomIndex]
-                iNew = randomValidMove[0]
-                jNew = randomValidMove[1]
+                edgesHorizontalCopy = copy.deepcopy(self.puzzle.edgesHorizontal)
+                edgesVerticalCopy = copy.deepcopy(self.puzzle.edgesVertical)
 
-                #Moving horizontal
-                if iCur == iNew:
-                    if jCur < jNew:
-                        self.puzzle.edgesHorizontal[iCur][jCur] = True
-                    elif jCur > jNew:
-                        self.puzzle.edgesHorizontal[iNew][jNew] = True
-
-                #Moving vertical
-                elif jCur == jNew:
-                    if iCur < iNew:
-                        self.puzzle.edgesVertical[iCur][jCur] = True
-                    elif iCur > iNew:
-                        self.puzzle.edgesVertical[iNew][jNew] = True
-
-                # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
-                # puzzleDisplay.drawSolution(itrSolution)
-                # time.sleep(0.5)
-                #Update any confirmed edges, effectively acting as heuristic
-                self.puzzle.updateEdges()
-
-                #If any single line is blocked end
-                # blockedPoint = False
-                # for point in self.puzzle.singlePoints:
-                #     pointValidMoves = self.puzzle.getValidMoves(point[0], point[1])
-                #     if len(pointValidMoves) == 0:
-                #         blockedPoint = True
-                #         break
-                # if blockedPoint:
-                #     break
-
-                #Move along already drawn lines
-                while (self.puzzle.checkPointsEdges(iNew, jNew) == 2 
-                and not (iNew == iStart and jNew == jStart)):
-
-                    #print(str(iCur)+","+str(jCur))
-
-                    if (iNew-1 >= 0 
-                    and iNew-1 != iCur 
-                    and self.puzzle.edgesVertical[iNew-1][jNew]):
-                        iCur = iNew
-                        jCur = jNew
-                        iNew = iNew-1
-                        continue
-
-                    if (iNew+1 <= self.puzzle.gridNumberY 
-                    and iNew+1 != iCur
-                    and self.puzzle.edgesVertical[iNew][jNew]):
-                        iCur = iNew
-                        jCur = jNew
-                        iNew = iNew+1
-                        continue
-                        
-                    if (jNew-1 >= 0 
-                    and jNew-1 != jCur
-                    and self.puzzle.edgesHorizontal[iNew][jNew-1]):
-                        iCur = iNew
-                        jCur = jNew
-                        jNew = jNew-1
-                        continue
-
-                    if (jNew+1 <= self.puzzle.gridNumberX 
-                    and jNew+1 != jCur
-                    and self.puzzle.edgesHorizontal[iNew][jNew]):
-                        iCur = iNew
-                        jCur = jNew
-                        jNew = jNew+1
-                        continue
-                
-                # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
-                # puzzleDisplay.drawSolution(itrSolution)
-                # time.sleep(0.5)
-
-                iCur = iNew
-                jCur = jNew
-                firstIteration = False
-
-                #Check if puzzle is already failed, only if -c activated
-                if USE_EARLY_CANCEL:
-                    possibleMoves = True
-                    self.puzzle.findSinglePoints()
-                    for point in self.puzzle.singlePoints:
-                        validMoves = self.puzzle.getValidMoves(point[0], point[1])
-                        if len(validMoves) == 0:
-                            possibleMoves = False
-                            break
-                    if not possibleMoves:
-                        break
-
-            #Compare with best ant in this iteration
-            curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
-            curFitness = curSolution.getFitness()
-            if bestSolution == None or curFitness > bestFitness:
-                bestFitness = curFitness
-                bestSolution = curSolution
-
-            self.puzzle.edgesHorizontal = edgesHorizontalCopy
-            self.puzzle.edgesVertical = edgesVerticalCopy
+                while True:
             
-        return bestSolution
+                    validMoves = self.puzzle.getValidMoves(iCur, jCur)
+
+                    if (iCur == iStart and jCur == jStart and not firstIteration) or len(validMoves) == 0:
+                        break
+                    
+                    #Average out weightings 
+                    weights = []
+                    totalWeight = 0
+                    for move in validMoves:
+                        weight = move[-1]
+                        weights.append(weight)
+                        totalWeight += weight
+                    for index in range(len(weights)):
+                        weights[index] = weights[index]*1.0/totalWeight*1.0
+
+                    #Select the random move from index
+                    randomIndex = np.random.choice(range(len(weights)), p=weights)
+                    randomValidMove = validMoves[randomIndex]
+                    iNew = randomValidMove[0]
+                    jNew = randomValidMove[1]
+
+                    #Moving horizontal
+                    if iCur == iNew:
+                        if jCur < jNew:
+                            self.puzzle.edgesHorizontal[iCur][jCur] = True
+                        elif jCur > jNew:
+                            self.puzzle.edgesHorizontal[iNew][jNew] = True
+
+                    #Moving vertical
+                    elif jCur == jNew:
+                        if iCur < iNew:
+                            self.puzzle.edgesVertical[iCur][jCur] = True
+                        elif iCur > iNew:
+                            self.puzzle.edgesVertical[iNew][jNew] = True
+
+                    # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+                    # puzzleDisplay.drawSolution(itrSolution)
+                    # time.sleep(0.5)
+                    #Update any confirmed edges, effectively acting as heuristic
+                    self.puzzle.updateEdges()
+
+                    #If any single line is blocked end
+                    # blockedPoint = False
+                    # for point in self.puzzle.singlePoints:
+                    #     pointValidMoves = self.puzzle.getValidMoves(point[0], point[1])
+                    #     if len(pointValidMoves) == 0:
+                    #         blockedPoint = True
+                    #         break
+                    # if blockedPoint:
+                    #     break
+
+                    #Move along already drawn lines
+                    while (self.puzzle.checkPointsEdges(iNew, jNew) == 2 
+                    and not (iNew == iStart and jNew == jStart)):
+
+                        #print(str(iCur)+","+str(jCur))
+
+                        if (iNew-1 >= 0 
+                        and iNew-1 != iCur 
+                        and self.puzzle.edgesVertical[iNew-1][jNew]):
+                            iCur = iNew
+                            jCur = jNew
+                            iNew = iNew-1
+                            continue
+
+                        if (iNew+1 <= self.puzzle.gridNumberY 
+                        and iNew+1 != iCur
+                        and self.puzzle.edgesVertical[iNew][jNew]):
+                            iCur = iNew
+                            jCur = jNew
+                            iNew = iNew+1
+                            continue
+                            
+                        if (jNew-1 >= 0 
+                        and jNew-1 != jCur
+                        and self.puzzle.edgesHorizontal[iNew][jNew-1]):
+                            iCur = iNew
+                            jCur = jNew
+                            jNew = jNew-1
+                            continue
+
+                        if (jNew+1 <= self.puzzle.gridNumberX 
+                        and jNew+1 != jCur
+                        and self.puzzle.edgesHorizontal[iNew][jNew]):
+                            iCur = iNew
+                            jCur = jNew
+                            jNew = jNew+1
+                            continue
+                    
+                    # itrSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+                    # puzzleDisplay.drawSolution(itrSolution)
+                    # time.sleep(0.5)
+
+                    iCur = iNew
+                    jCur = jNew
+                    firstIteration = False
+
+                    #Check if puzzle is already failed, only if -c activated
+                    if USE_EARLY_CANCEL:
+                        possibleMoves = True
+                        self.puzzle.findSinglePoints()
+                        for point in self.puzzle.singlePoints:
+                            validMoves = self.puzzle.getValidMoves(point[0], point[1])
+                            if len(validMoves) == 0:
+                                possibleMoves = False
+                                break
+                        if not possibleMoves:
+                            break
+
+                #Compare with best ant in this iteration
+                curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
+                curFitness = curSolution.getFitness()
+                if bestSolutions[startingPointIndex] == None or curFitness > bestFitness[startingPointIndex]:
+                    bestFitness[startingPointIndex] = curFitness
+                    bestSolutions[startingPointIndex] = curSolution
+
+                self.puzzle.edgesHorizontal = edgesHorizontalCopy
+                self.puzzle.edgesVertical = edgesVerticalCopy
+            
+        return bestSolutions
 
 #Global Graphic Sizes
 CANVAS_BLOCK_SIZE = 60
@@ -755,6 +773,7 @@ parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
 parser.add_argument('-p', '--pheremones', action = 'store_true', help='display pheremones instead of best solution (-t flag must be off)')
 parser.add_argument('-r', '--random', action = 'store_true', help='flag turns off the use of the heuristic with the ACO')
+parser.add_argument('-s', '--startpoints', action = 'store_true', help='flag turns on getting every starting points best solution per iteration')
 parser.add_argument('-c', '--cancel', action = 'store_true', help='flag turns on the early cancel if ACO is known to be wrong')
 parser.add_argument('-w', '--weights', type = float, nargs = '*', help='3 floats representing fitness weighting for; completeness, distance, single points, respectively (must not be more than 1 combined)')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
@@ -762,6 +781,7 @@ args = parser.parse_args()
 
 USE_HEURISTIC = not args.random
 USE_EARLY_CANCEL = args.cancel
+USE_STARTING_POINTS = args.startpoints
 
 #Check weights are correctly formatted
 if args.weights == None:
@@ -818,13 +838,19 @@ if args.testing != None:
 
         #Run ACO
         ants = Ants(puzzle, POPULATION_SIZE)
+        solutionFound = False
         for iteration in range(MAX_ITERATIONS):
-            bestSolution = ants.findBestAnt()
-            puzzle.updatePheromones(bestSolution)
+            bestSolutions = ants.findBestAnt()
+            puzzle.updatePheromones(bestSolutions)
 
-            if bestSolution.isSolutionComplete():
-                completed.append(iteration+1)
-                completedTime.append(time.clock() - startTimeIteration)
+            for bestSolution in bestSolutions:
+                if bestSolution.isSolutionComplete():
+                    completed.append(iteration+1)
+                    completedTime.append(time.clock() - startTimeIteration)
+                    solutionFound = True
+                    break
+
+            if solutionFound:
                 break
 
         print("ACO Complete " + str(index+1) + "/" + str(TESTING_REPEATS) + " times")
@@ -857,20 +883,34 @@ else:
 
     #Run ACO
     ants = Ants(puzzle, POPULATION_SIZE)
+    solutionFound = False
     for iteration in range(MAX_ITERATIONS):
-        bestSolution = ants.findBestAnt()
-        puzzle.updatePheromones(bestSolution)
+        bestSolutions = ants.findBestAnt()
+        puzzle.updatePheromones(bestSolutions)
+
+        maxFitness = None
+        maxSolution = None
+        for bestSolution in bestSolutions:
+
+            fitness = bestSolution.getFitness()
+            if maxFitness == None or fitness > maxFitness:
+                maxFitness = fitness
+                maxSolution = bestSolution
+
+            if bestSolution.isSolutionComplete():
+                print("Solution Found on Iteration: " + str(iteration+1))
+                puzzleDisplay.drawSolution(bestSolution)
+                solutionFound = True
+                break
+
+        if solutionFound:
+            break
 
         #Type of display produced
         if args.pheremones:
             puzzleDisplay.drawPheromones()
-        else:
-            puzzleDisplay.drawSolution(bestSolution)
-
-        if bestSolution.isSolutionComplete():
-            print("Solution Found on Iteration: " + str(iteration+1))
-            puzzleDisplay.drawSolution(bestSolution)
-            break
+        elif maxSolution != None:
+            puzzleDisplay.drawSolution(maxSolution)
 
     print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
 
