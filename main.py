@@ -469,6 +469,7 @@ class Puzzle(object):
             for j in range(0, self.gridNumberX+1):
                 self.edgesVerticalPheromones[i][j] *= EVAPORATION_RATE
 
+        numberOfSolutions = len(solutions)
         for solution in solutions:
 
             fitness = solution.getFitness()
@@ -477,12 +478,12 @@ class Puzzle(object):
             for i in range(0, self.gridNumberY+1):
                 for j in range(0, self.gridNumberX):
                     if solution.edgesHorizontal[i][j]:
-                        self.edgesHorizontalPheromones[i][j] += deltaPheromones
+                        self.edgesHorizontalPheromones[i][j] += deltaPheromones*1.0/numberOfSolutions*1.0
 
             for i in range(0, self.gridNumberY):
                 for j in range(0, self.gridNumberX+1):
                     if solution.edgesVertical[i][j]:
-                        self.edgesVerticalPheromones[i][j] += deltaPheromones
+                        self.edgesVerticalPheromones[i][j] += deltaPheromones*1.0/numberOfSolutions*1.0
 
 class DrawPuzzle(object):
     
@@ -562,12 +563,26 @@ class DrawPuzzle(object):
     
     def drawPheromones(self):
 
+        #First finding max pheromone value
+        maxPheromone = None
+        for i in range(len(self.puzzle.edgesHorizontalPheromones)):
+            for j in range(len(self.puzzle.edgesHorizontalPheromones[i])):
+                if maxPheromone == None or self.puzzle.edgesHorizontalPheromones[i][j] > maxPheromone:
+                    maxPheromone = self.puzzle.edgesHorizontalPheromones[i][j]
+        for i in range(len(self.puzzle.edgesVerticalPheromones)):
+            for j in range(len(self.puzzle.edgesVerticalPheromones[i])):
+                if maxPheromone == None or self.puzzle.edgesVerticalPheromones[i][j] > maxPheromone:
+                    maxPheromone = self.puzzle.edgesVerticalPheromones[i][j]
+        if maxPheromone == None:
+            maxPheromone = 1
+
+        #Draw pheromones scaled red intensity with max value
         for i in range(len(self.puzzle.edgesHorizontalPheromones)):
             for j in range(len(self.puzzle.edgesHorizontalPheromones[i])):
 
                 colour = "red"
                 if not self.puzzle.edgesHorizontalPheromones[i][j] > 1:
-                    colourProportional = int2Hex(int(255*(1-self.puzzle.edgesHorizontalPheromones[i][j])))
+                    colourProportional = int2Hex(int(255*(1-(self.puzzle.edgesHorizontalPheromones[i][j]*1.0/maxPheromone*1.0))))
                     colour = "#ff" + colourProportional + colourProportional
 
                 xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
@@ -579,7 +594,7 @@ class DrawPuzzle(object):
 
                 colour = "red"
                 if not self.puzzle.edgesVerticalPheromones[i][j] > 1:
-                    colourProportional = int2Hex(int(255*(1-self.puzzle.edgesVerticalPheromones[i][j])))
+                    colourProportional = int2Hex(int(255*(1-(self.puzzle.edgesVerticalPheromones[i][j]*1.0/maxPheromone*1.0))))
                     colour = "#ff" + colourProportional + colourProportional
 
                 xCoord = CANVAS_BOUNDARY_SIZE + j*CANVAS_BLOCK_SIZE + CIRCLE_SIZE/2 + LINE_SIZE/2
