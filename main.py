@@ -31,7 +31,7 @@ class Solution(object):
         self.returnToStart = iStart == iEnd and jStart == jEnd
         self.distanceFromStart = abs(iEnd-iStart) + abs(jEnd-jStart)
 
-    def getFitness(self):
+    def getFitness(self, update):
 
         originalEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
         originalEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
@@ -45,10 +45,87 @@ class Solution(object):
         for i in range(0, self.puzzle.gridNumberY):
             for j in range(0, self.puzzle.gridNumberX):
                 if self.puzzle.checkBoxComplete(i,j):
-                    totalBoxesComplete += self.puzzle.blocks[i][j] + 1
+                    totalBoxesComplete += 1
                 if not self.puzzle.blocks[i][j] == None:
                     totalBoxesNumbers += 1
-        completeProp = totalBoxesComplete*1.0/totalBoxesNumbers*1.0
+
+        completeProp = 0.5
+        if totalBoxesNumbers != 0:
+            completeProp = totalBoxesComplete*1.0/totalBoxesNumbers*1.0
+
+        #Total number of starting points hit
+        self.puzzle.findSinglePoints()
+        singlePointsNum = len(self.puzzle.singlePoints)
+        pointsNum = self.puzzle.gridNumberX * self.puzzle.gridNumberY
+        singleProp = 1 - (singlePointsNum*1.0/pointsNum*1.0)
+
+        #Get distance as proportional
+        maxDist = self.puzzle.gridNumberX + self.puzzle.gridNumberY
+        distProp = 1 - (self.distanceFromStart*1.0/maxDist*1.0)
+
+        self.puzzle.edgesHorizontal = originalEdgesHorizontal
+        self.puzzle.edgesVertical = originalEdgesVertical
+
+        global WEIGHT_COMPLETE 
+        global WEIGHT_DISTANCE
+        global WEIGHT_SINGLE 
+
+        totalFitness = WEIGHT_COMPLETE*completeProp + WEIGHT_DISTANCE*distProp + WEIGHT_SINGLE*singleProp
+
+        #Update weights if '-d' being used
+        if USE_DYNAMIC_FITNESS and update:
+
+            props = [completeProp,distProp,singleProp]
+            minPropIndex = props.index(min(props))
+            increment = FITNESS_INCREMENT
+            halfIncrement = FITNESS_INCREMENT/2.0
+
+            if minPropIndex == 0:
+                WEIGHT_COMPLETE = min(1.0, WEIGHT_COMPLETE+increment)
+                WEIGHT_DISTANCE = max(0.0, WEIGHT_DISTANCE-halfIncrement)
+                WEIGHT_SINGLE   = max(0.0,   WEIGHT_SINGLE-halfIncrement)
+
+            elif minPropIndex == 1:
+                WEIGHT_COMPLETE = max(0.0, WEIGHT_COMPLETE-halfIncrement)
+                WEIGHT_DISTANCE = min(1.0, WEIGHT_DISTANCE+increment)
+                WEIGHT_SINGLE   = max(0.0,   WEIGHT_SINGLE-halfIncrement)
+
+            elif minPropIndex == 2:
+                WEIGHT_COMPLETE = max(0.0, WEIGHT_COMPLETE-halfIncrement)
+                WEIGHT_DISTANCE = max(0.0, WEIGHT_DISTANCE-halfIncrement)
+                WEIGHT_SINGLE   = min(1.0,   WEIGHT_SINGLE+increment)
+
+            totalWeights = WEIGHT_COMPLETE + WEIGHT_DISTANCE + WEIGHT_SINGLE
+            WEIGHT_COMPLETE = WEIGHT_COMPLETE/totalWeights
+            WEIGHT_DISTANCE = WEIGHT_DISTANCE/totalWeights
+            WEIGHT_SINGLE   =   WEIGHT_SINGLE/totalWeights
+
+        return totalFitness
+    
+    def getFitnessPoint(self, iCurrent, jCurrent):
+
+        originalEdgesHorizontal = copy.deepcopy(self.puzzle.edgesHorizontal)
+        originalEdgesVertical = copy.deepcopy(self.puzzle.edgesVertical)
+
+        self.puzzle.edgesHorizontal = self.edgesHorizontal
+        self.puzzle.edgesVertical = self.edgesVertical
+
+        #Total number of boxes complete
+        totalBoxesComplete = 0.0
+        totalBoxesNumbers = 0.0
+        for i in range(iCurrent-1, iCurrent+1):
+            for j in range(jCurrent-1, jCurrent+1):
+
+                if (0 <= i and i <= self.puzzle.gridNumberY-1
+                and 0 <= j and j <= self.puzzle.gridNumberX-1):
+                    if self.puzzle.checkBoxComplete(i,j):
+                        totalBoxesComplete += self.puzzle.blocks[i][j] + 1
+                    if not self.puzzle.blocks[i][j] == None:
+                        totalBoxesNumbers += 1
+
+        completeProp = 0.5
+        if totalBoxesNumbers != 0:
+            completeProp = totalBoxesComplete*1.0/totalBoxesNumbers*1.0
 
         #Total number of starting points hit
         self.puzzle.findSinglePoints()
@@ -331,7 +408,7 @@ class Puzzle(object):
     def updateEdges(self):
 
         #If -r is on don't update edges
-        if not USE_HEURISTIC:
+        if USE_RANDOM:
             return
 
         updated = True
@@ -471,18 +548,30 @@ class Puzzle(object):
 
         numberOfSolutions = len(solutions)
         for solution in solutions:
+            
+            fitness = 0
 
-            fitness = solution.getFitness()
+            #If -l is used we use local fitness around edge rather than fitness of entire solution
+            if not USE_LOCAL_FITNESS:
+                fitness = solution.getFitness(True)
             deltaPheromones = fitness * UPDATE_CONST
 
             for i in range(0, self.gridNumberY+1):
                 for j in range(0, self.gridNumberX):
                     if solution.edgesHorizontal[i][j]:
+
+                        if USE_LOCAL_FITNESS:
+                            fitness = solution.getFitnessPoint(i,j)
+                            deltaPheromones = fitness * UPDATE_CONST
                         self.edgesHorizontalPheromones[i][j] += deltaPheromones*1.0/numberOfSolutions*1.0
 
             for i in range(0, self.gridNumberY):
                 for j in range(0, self.gridNumberX+1):
                     if solution.edgesVertical[i][j]:
+
+                        if USE_LOCAL_FITNESS:
+                            fitness = solution.getFitnessPoint(i,j)
+                            deltaPheromones = fitness * UPDATE_CONST
                         self.edgesVerticalPheromones[i][j] += deltaPheromones*1.0/numberOfSolutions*1.0
 
 class DrawPuzzle(object):
@@ -756,7 +845,7 @@ class Ants(object):
 
                 #Compare with best ant in this iteration
                 curSolution = Solution(self.puzzle, self.puzzle.edgesHorizontal, self.puzzle.edgesVertical, iStart, jStart, iCur, jCur)
-                curFitness = curSolution.getFitness()
+                curFitness = curSolution.getFitness(False)
                 if bestSolutions[startingPointIndex] == None or curFitness > bestFitness[startingPointIndex]:
                     bestFitness[startingPointIndex] = curFitness
                     bestSolutions[startingPointIndex] = curSolution
@@ -786,17 +875,29 @@ WEIGHT_SINGLE = 0.33
 #Arguement Parser, requires a filename for puzzle
 parser = argparse.ArgumentParser(description='Solve a Loops Puzzle')
 parser.add_argument('filename', help='name of puzzle file required to solve')
-parser.add_argument('-p', '--pheremones', action = 'store_true', help='display pheremones instead of best solution (-t flag must be off)')
+parser.add_argument('-p', '--pheromones', action = 'store_true', help='display pheromones instead of best solution (-t flag must be off)')
 parser.add_argument('-r', '--random', action = 'store_true', help='flag turns off the use of the heuristic with the ACO')
 parser.add_argument('-s', '--startpoints', action = 'store_true', help='flag turns on getting every starting points best solution per iteration')
+parser.add_argument('-l', '--localized', action = 'store_true', help='flag turns on using a localised fitness function for edge pheromones')
 parser.add_argument('-c', '--cancel', action = 'store_true', help='flag turns on the early cancel if ACO is known to be wrong')
+parser.add_argument('-d', '--dynamic', type = float, nargs = 1, help='fitness weightings will adjust dynamically by increment of arg')
 parser.add_argument('-w', '--weights', type = float, nargs = '*', help='3 floats representing fitness weighting for; completeness, distance, single points, respectively (must not be more than 1 combined)')
 parser.add_argument('-t', '--testing', type = int, nargs = 1, help='single argument, number of times to test ACO with puzzle')
 args = parser.parse_args()
 
-USE_HEURISTIC = not args.random
+USE_RANDOM = args.random
 USE_EARLY_CANCEL = args.cancel
 USE_STARTING_POINTS = args.startpoints
+USE_LOCAL_FITNESS = args.localized
+
+#Check '-d' used correctly
+USE_DYNAMIC_FITNESS = args.dynamic != None
+FITNESS_INCREMENT = 0
+if USE_DYNAMIC_FITNESS:
+    if args.dynamic[0] < 0 or 1 < args.dynamic[0]:
+        print('ERROR: Dynamic increment must be between 0 and 1')
+        exit()
+    FITNESS_INCREMENT = args.dynamic[0]
 
 #Check weights are correctly formatted
 if args.weights == None:
@@ -907,7 +1008,7 @@ else:
         maxSolution = None
         for bestSolution in bestSolutions:
 
-            fitness = bestSolution.getFitness()
+            fitness = bestSolution.getFitness(False)
             if maxFitness == None or fitness > maxFitness:
                 maxFitness = fitness
                 maxSolution = bestSolution
@@ -922,7 +1023,7 @@ else:
             break
 
         #Type of display produced
-        if args.pheremones:
+        if args.pheromones:
             puzzleDisplay.drawPheromones()
         elif maxSolution != None:
             puzzleDisplay.drawSolution(maxSolution)
@@ -930,7 +1031,3 @@ else:
     print("ACO Complete\nTotal Time: " + str(time.clock() - startTime) + "s")
 
     puzzleDisplay.root.mainloop()
-
-#TODO Lay pheromones for every starting point
-#TODO stepwise changes in weightings
-#TODO local pheremones
